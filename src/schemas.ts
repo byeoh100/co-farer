@@ -10,10 +10,11 @@
 import type { CollectionSchema } from 'deepspace/schema'
 import { usersSchema } from './schemas/users-schema'
 import { settingsSchema } from './schemas/admin-schema'
-import { tripSchemas } from './schemas/trip-schemas'
+import { coreSchemas } from './schemas/trip-schemas'
 
+// Add each module's schemas here only when that module is being built.
 export const schemas: CollectionSchema[] = [
   usersSchema,
   settingsSchema,
-  ...tripSchemas,
+  ...coreSchemas,
 ]

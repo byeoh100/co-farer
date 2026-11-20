@@ -19,3 +19,9 @@ export const SCOPE_ID = `app:${APP_ID}`
 
 /** Roles and display config — imported from SDK (single source of truth) */
 export { ROLES, ROLE_CONFIG, type Role } from 'deepspace'
+
+// ── Trip Quorum limits (PLAN.md §6). Starting points; change freely. ──
+/** AI research calls allowed per trip (housing + activities + food). */
+export const RESEARCH_CALL_CAP = 25
+/** How many options "Suggest" creates, per module. */
+export const SUGGESTION_COUNT = { housing: 5, activities: 10, food: 10 } as const

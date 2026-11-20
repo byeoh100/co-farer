@@ -1,227 +1,410 @@
-# Trip Quorum — build plan
+# Trip Quorum: build plan
 
-A trip room where a group actually **decides**. Each person privately sets a
-budget and needs; options get researched with sources; everyone votes live;
-the organizer locks decisions into a final plan. The group sees how well an
-option fits ("over budget for 2 of 5") without anyone exposing their number.
+This is the code plan for the
+[Trip Quorum Master Spec](https://claude.ai/artifact/GvLauMNkadF9e9mYWSecsH).
+**The spec decides what the app does; this file decides how it's built.** If
+they disagree, the spec wins. Fix this file to match it.
 
-Target: deployed at `trip-quorum.app.space` (subdomain = `name` in
-`wrangler.toml`; rename there before first deploy if you want another).
-
----
-
-## 1. Scope
-
-**The important path (must be solid with 2+ real users):**
-
-1. Sign in → create a trip → share invite link.
-2. Friend opens link → joins → sets private constraints.
-3. Anyone adds a decision ("Where do we stay?") and options (name or URL).
-4. "Research" on an option → sourced summary + estimated price → group-fit badge.
-5. Members toggle approval votes; tallies and who's-here update live.
-6. Organizer locks a decision (or cron locks it at the deadline) → it appears on
-   the trip's final plan. Non-voters get an email nudge before the deadline.
-
-**Explicitly out (goes in the writeup as "next"):** expense splitting,
-day-by-day itinerary, flights/booking, maps, Google Calendar availability,
-mobile app, ranked-choice voting, comments/chat per option.
-
-**Why approval voting, not ranked-choice:** one tap per option, trivially
-explained tallies, no tie-break algorithm to debug. Ranked-choice is a
-contained follow-up (votes gain a `rank` column; tally changes; UI changes).
+Trip Quorum is a group trip planner where friends decide on dates, where to
+stay, and how to get there together. Each budget is private unless its owner
+chooses to share it.
 
 ---
 
-## 2. Main tradeoff (draft for the writeup)
+## 0. Build rule: one module at a time
 
-**All trip writes go through server actions instead of direct record writes.**
-DeepSpace's `'team'` read rule gives per-trip isolation for free, but `create`
-is a plain boolean with no membership check — a client could insert an option
-into any trip whose id it knows. Routing writes through actions lets me enforce
-membership, "no votes after lock", "organizer-only lock" and "one vote per
-member" in one place. Cost: each write is a round trip instead of an optimistic
-local write, so voting feels slightly less instant. Reads stay on live
-subscriptions, so everyone still sees changes in real time.
+Build in this order. Each module must work end to end, be tested with at
+least two users, and be **deployed** before the next one starts. If time runs
+out, stop at the last finished module and write up the rest as next steps.
 
-Second tradeoff: **group fit shows counts, never names.** Less precise than
-"Alice can't afford it," but it is the reason people will enter honest numbers.
-
----
-
-## 3. Data & access model
-
-All collections live in the single app RecordRoom (`app:<APP_ID>`). A trip is
-a "team"; the SDK's `'team'` permission reads membership from `team_members`
-(`teamId`, `userId`, `status` = `active` or null). Schemas:
-`src/schemas/trip-schemas.ts`.
-
-| Collection | Read | Client writes | Notes |
+| # | Module | Priority | Rough target |
 |---|---|---|---|
-| `trips` | team (`teamField: '_rowId'`) | none | `organizerId`, `inviteCode`, `researchCallsUsed` |
-| `team_members` | team | none | `tripRole` organizer/member, `hasConstraints` flag (not values) |
-| `constraints` | **own** (`ownerField: 'userId'`) | none | budget, dietary, mobility, dealbreakers |
-| `decisions` | team | none | `status` open/locked, `deadline`, `winningOptionId`, `reminderSentAt` |
-| `options` | team | none | `research` JSON, `groupFit` JSON (aggregates only) |
-| `votes` | team | none | `uniqueOn: [optionId, userId]` |
+| 1 | Core: trips, invites, roles, budgets | Must | Day 1 |
+| 2 | Dates | Must | Day 2 |
+| 3 | Housing (builds the shared suggest-research-vote engine) | Must | Day 3 |
+| 4 | Transportation | Should | Day 4 |
+| 5 | Notes | Should | Day 4 |
+| 6 | Activities (reuses engine) | Nice | Day 5 if time |
+| 7 | Food (reuses engine) | Nice | Day 5 if time |
 
-- Admins get **no** extra read rights on trip data. The app owner can't read
-  anyone's budget through the app.
-- Unit tests (`src/schemas.test.ts`) pin these rules and run the SDK's
-  `lintSchemas` — currently clean.
+Stretch, only after the module it belongs to is deployed: gas estimates (4),
+the best-window helper (2), and automatic deadline locking with email
+reminders (3).
 
-**Known platform behaviours to design around (found reading the SDK 0.44.2 source):**
+Day 5 is reserved for the two-user test pass, a real dry run, the writeup and
+the final deploy, whatever else is unfinished.
 
-- The team query clause is `tripId IN (my trips) OR _created_by = me`. Rows
-  created by an action carry the caller as creator, so a member who leaves
-  still sees rows they created. Acceptable; noted.
-- `notifyTeamMembershipChange` reads `record.data.UserId` (capital U), but
-  record data is keyed by column name (`userId`). Likely result: after
-  `joinTrip`, the joiner's open subscriptions are **not** refreshed, so the
-  trip looks empty until reconnect. **Workaround:** after a successful join,
-  remount the `RecordScope` (change its `key`) or navigate with a full reload.
-  **Verify on day 1** with two browsers; if confirmed, report it upstream and
-  mention it in the writeup.
+**How to direct the coding agent:** give it one module section at a time
+(for example "Build §4.2 Dates, nothing else"), plus §2 and §3. Don't hand it
+the whole spec and ask for the app.
 
 ---
 
-## 4. Server actions (`src/actions/`)
+## 1. What is already in the repo
 
-Every action starts with `requireMember` / `requireOrganizer`
-(`src/actions/trip-access.ts`, done). Actions run RBAC-off, so this is the
-security boundary for writes. The caller is `ctx.userId` (from the verified JWT), never a param.
+- DeepSpace scaffold (create-deepspace 0.44.2).
+- `src/schemas/trip-schemas.ts`: Core schemas only (§4.1).
+- `src/actions/trip-access.ts`: `requireMember` and `requireOrganizer`
+  guards, written in full.
+- `src/actions/index.ts`: Core action stubs.
+- `src/lib/budget-fit.ts`: the per-category fit counts, the rounded group
+  price band, and the person's own budget summary (essentials-only total),
+  all written in full. Its tests check that no exact budget leaks out.
+- `src/schemas.test.ts`: pins the access rules and runs the SDK's
+  `lintSchemas`.
+- **Status:** `tsc`, `eslint` and 11 unit tests pass. The project isn't
+  registered or deployed yet; see §8.
 
-| Action | Who | Invariants |
+---
+
+## 2. Access model (applies to every module)
+
+- **A trip is a "team".** Membership is stored in `team_members` (`teamId`,
+  `userId`, `status`). DeepSpace's `'team'` read rule shows a row only to
+  members of that row's trip. Every trip-scoped collection uses
+  `read: 'team'` with `teamField: 'tripId'`.
+- **All trip writes go through server actions.** In DeepSpace, permission to
+  create a row doesn't check trip membership, so a direct client write could
+  insert rows into someone else's trip. Every collection therefore sets
+  `create/update/delete: false`. Actions run with record permissions off, so
+  **every action starts with `requireMember` or `requireOrganizer`**. The
+  caller is `ctx.userId`, never a parameter.
+- **Budgets:**
+  - The private `budgets` collection (`read: 'own'`) holds all figures.
+  - `public_budgets` (`read: 'team'`) has a row only for the categories a
+    person has switched to public. `setMyBudgets` keeps the two in sync.
+  - Fit counts are computed in actions, which can read all budgets, and only
+    the counts are stored.
+- **Food preferences are public** (spec decision), so Module 7 stores them in
+  a `team`-read collection. They're never mixed into budgets.
+- **Admins get no extra read rights on trip data.**
+- **Leaving a trip:**
+  - Membership is set to `status: 'left'`; the row isn't deleted, so the
+    notes board can gray out that person's notes.
+  - `leaveTrip` calls a cleanup function for each module that has been built:
+    remove votes, seat claims and availability. Each new module adds its
+    cleanup there.
+  - Fit counts and price bands only include active members.
+  - The organizer can't leave in v1.
+
+**Known DeepSpace behaviors, found by reading the SDK 0.44.2 source:**
+- The team read rule is `tripId IN (my trips) OR _created_by = me`. Rows an
+  action creates list the caller as creator, so someone who leaves still sees
+  rows they created. Acceptable; mention it in the writeup.
+- When someone joins, DeepSpace is supposed to refresh their live data, but
+  the code that triggers that reads `record.data.UserId` (capital U), while
+  the column is named `userId`. So after `joinTrip`, the joiner's page
+  probably won't update by itself. **Workaround:** remount the `RecordScope`
+  (change its `key`) after joining. **Verify in Module 1** with two browsers,
+  and report it to DeepSpace if confirmed.
+
+---
+
+## 3. Shared pieces (build once, reuse)
+
+- **Budget fit** (`src/lib/budget-fit.ts`, done):
+  - Fit is counted per category, against that category's budget.
+  - Fewer than 3 responses → `tooFewResponses`, and the UI shows a softer
+    message.
+  - "Price not found" is left out of the fit check.
+  - The person's own total adds up **essentials only (housing + gas)**.
+  - Food and activity prices are shown for reference only and never checked.
+- **Suggest-research-vote engine** (built in Module 3, reused in 6 and 7):
+  - `boards`: one per (trip, module), with `lockable`, `status`, `deadline`
+    and `winningOptionId`.
+  - `options`: `boardId`, `module`, `title`, `url`, `source` (ai/member),
+    `researchStatus`, `research` JSON, `estPricePerPerson` (nullable),
+    `stale`, and `fit` JSON for housing only.
+  - `votes`: approval voting, `uniqueOn [optionId, userId]`.
+  - Actions:
+    - `suggestOptions` (N = 5 for housing, 10 otherwise; "search for more"
+      calls it again)
+    - `addOption` (paste a link or a name, then research it)
+    - `researchOption`, `toggleVote`
+    - `setDeadline`/`clearDeadline` and `lockBoard` (lockable boards only)
+- **AI research pipeline**, used by `suggestOptions` and `researchOption`:
+  1. Check the trip's cap (§6), then increment `researchCallsUsed`.
+  2. `exa/search` with the destination, the locked dates (housing), the group
+     price band (housing, only if `groupPriceBand` isn't null) or dietary tags
+     (food).
+  3. `anthropic/chat-completion` with no tools. Its instructions treat page
+     text as untrusted data and allow citing only URLs from the search
+     results. It returns JSON, checked with zod.
+  4. If no price was found, `estPricePerPerson` is null and the option shows
+     "price not found".
+  - Confirm request shapes first:
+    `npx deepspace integrations info exa/search` and
+    `… anthropic/chat-completion`.
+
+---
+
+## 4. Modules
+
+Each module lists: data, actions, UI, edge cases, and "done when". Add the
+module's schemas to `src/schemas.ts` and its actions to `src/actions/` only
+when you start building it.
+
+### 4.1 Core: trips, invites, roles, budgets
+
+- **Data (written):** `trips`, `team_members`, `budgets`, `public_budgets`.
+- **Actions:**
+  - `createTrip`: creates the trip and the organizer's membership; random
+    invite code of 10+ characters.
+  - `getInvite`: trip name for the join page; no membership needed; reveals
+    nothing else.
+  - `joinTrip`: running it twice is harmless, and it reactivates a member
+    who left.
+  - `leaveTrip`.
+  - `rotateInviteCode`: organizer only.
+  - `setMyBudgets`: upserts your private row and syncs `public_budgets`:
+    adds rows for categories switched to public, deletes them when switched
+    back.
+- **Pages:**
+  1. Landing page and sign in.
+  2. **My trips**: list plus create.
+  3. **Join** (`/join/[code]`): trip name and a join button.
+  4. **Settings** (`/trip/[id]/settings`), shown right after joining:
+     - four budgets, each with a private/public switch (private by default);
+     - the essentials-only total and over-budget flags;
+     - a clear label: "only you can see private budgets".
+  5. **Trip page** (`/trip/[id]`): members list and empty module tabs. Each
+     tab appears as its module ships.
+- The starter's in-app AI chat isn't in the spec. Hide it in v1. Its tools
+  would run as the signed-in user, so they couldn't read anyone else's
+  budgets anyway.
+- **Done when (two browsers):**
+  - A creates a trip, B joins by link and lands on settings, and the trip
+    then shows for B without a manual reload (this is the join-refresh check
+    from §2).
+  - B sets a private housing budget of $150. A gets no B row from `budgets`,
+    and no `public_budgets` row for B.
+  - B makes gas public. A sees B's gas number next to B's name.
+  - A non-member calling `setMyBudgets` with A's `tripId` gets `not_a_member`.
+
+### 4.2 Dates
+
+- **Data:**
+  - `availability`: `tripId`, `userId`, `start`, `end`. Dates are stored as
+    `YYYY-MM-DD` text, with no times, to avoid time-zone shifts.
+  - Added to `trips`: `datesStatus` (open/locked), `datesStart`, `datesEnd`.
+- **Actions:**
+  - `addAvailability` / `removeAvailability`, for your own ranges; any number
+    of ranges, which don't need to overlap.
+  - `lockDates` (organizer).
+  - `unlockDates` (organizer): resets housing (see edge cases below).
+- **Logic:** `src/lib/overlap.ts` is a pure function that returns the number
+  of active members free each day. Unit-test it, including ranges that touch
+  and ranges that overlap.
+- **UI:**
+  - A calendar for adding ranges.
+  - An overlap heatmap; tapping a day shows who's free.
+  - Stretch: a "Help me find the best window" checkbox. The organizer enters a
+    trip length, and `bestWindows(counts, nights)` highlights the top
+    stretches.
+- **Edge cases:**
+  - Before unlocking, the app warns that housing will have to be researched
+    again.
+  - When the organizer confirms, the housing board goes to
+    `waiting_for_dates`, votes are cleared, and options are marked `stale`.
+  - When the new dates are locked, the board reopens and stale options can be
+    re-researched; each re-research counts toward the cap.
+- **Done when:** two users add ranges and the heatmap counts match. The
+  organizer locks, and the dates tab shows locked dates for both. A member
+  calling `lockDates` is refused.
+
+### 4.3 Housing (builds the engine)
+
+- **Data:** `boards`, `options`, `votes` (§3). The housing board is
+  `lockable`, has `fit` on its options, and starts as `waiting_for_dates`.
+- **Flow:**
+  - Once dates lock, the board opens, and "Suggest" makes the top 5 options
+    using the rounded group price band, never one person's number.
+  - Anyone can paste a link or add a name, and the AI researches it.
+  - Each option card shows a summary, price per person, pros and cons,
+    sources, and fit ("over the housing budget for 2 of 6").
+- **Locking:**
+  - The organizer can set, change or remove the deadline, and can lock early.
+  - `lockBoard` with no option picks the top vote; on a tie it returns `tie`,
+    and the organizer picks.
+  - Locked housing's price per person becomes each member's housing
+    *estimate* on their settings page.
+- **Fit refresh:** recompute `fit` when an option is researched and when
+  anyone changes their housing budget. `setMyBudgets` triggers it for open
+  housing boards.
+- **Stretch: auto-lock.**
+  - A cron job runs every 15 minutes and locks the top option when the
+    deadline has passed; on a tie, it stays open and emails the organizer.
+  - It emails a reminder to members who haven't voted, 24 hours before the
+    deadline.
+  - Confirm the email request shape first: `integrations info email/send`.
+- **Done when (two browsers):**
+  - Before dates lock, the housing tab says it's waiting.
+  - After lock, suggestions show sources.
+  - A pasted link gets researched.
+  - Votes update live in both browsers.
+  - Fit counts change when B changes their budget.
+  - Locking works and blocks later votes.
+  - The cap message shows at 25 calls (set it to 2 temporarily to test).
+
+### 4.4 Transportation
+
+- **Data:**
+  - Added to `trips`: `defaultMeetingPoint`.
+  - `travel`: `tripId`, `userId`, `mode` (driving / riding / flying / other /
+    undecided), `startPoint` (null = the trip default), `seats` (drivers),
+    `flightInfo`, `arrivalTime`, `note`. Plus `mpg` for the stretch.
+  - `seat_claims`: `tripId`, `driverUserId`, `riderUserId`, with
+    `uniqueOn [tripId, riderUserId]` so each rider holds one seat.
+- **Actions:**
+  - `setMyTravel`. Switching away from driving releases that car's claims;
+    lowering seats below the current claims is refused.
+  - `claimSeat` / `releaseSeat`. To handle two riders grabbing the last seat
+    at once: insert the claim, re-count, and roll back if the car is over
+    capacity.
+- **UI:**
+  - A carpool board grouped by start point. For one shared start, like
+    campus, it's a single group.
+  - Tap a car to claim a seat; full cars are marked.
+  - Flyers and "other" travelers are listed with their details; undecided
+    people show as "not decided".
+  - The app doesn't suggest who rides with whom.
+- **Stretch: gas.**
+  - The organizer enters one-way miles. No maps integration was confirmed, so
+    the distance is entered by hand; an AI lookup is a later option.
+  - Gas price is a default the organizer can edit.
+  - Per person: `2 × miles ÷ mpg × gasPrice ÷ people in car`, with a default
+    mpg if the driver skips it.
+  - The result is that person's gas estimate on their settings page, checked
+    against their gas budget.
+- **Leave cleanup:** remove the person's claims. If they were a driver,
+  release their riders' claims.
+- **Done when:** A drives with 3 seats and B claims one; both see it live.
+  The car shows full at capacity. B switches to flying and the seat frees up.
+
+### 4.5 Notes
+
+- **Data:** `notes`: `tripId`, `authorId`, `text`.
+- **Actions:**
+  - `addNote`.
+  - `editNote` / `deleteNote`, for your own notes.
+  - `removeNote` (organizer, any note, including ones from people who left).
+- **UI:**
+  - A board of sticky notes showing who wrote each, updating live.
+  - Notes whose author has `status: 'left'` are grayed out and marked
+    "has left".
+  - Not in v1: colors and checkboxes.
+- **Done when:** the live add, edit and delete flow works across two
+  browsers. B leaves, and B's notes gray out but stay. The organizer removes
+  one.
+
+### 4.6 Activities (reuses engine)
+
+- The board isn't lockable and has no deadline. The list is ranked by votes.
+- `suggestOptions` makes 10. "Search for more" calls it again, and anyone can
+  paste a link.
+- Each activity shows a description, an estimated price per person
+  (reference only, never checked against a budget) and a source link.
+- **Done when:** suggestions appear, a pasted link works, and the ranking
+  changes as people vote.
+
+### 4.7 Food (reuses engine)
+
+- **Data:** `food_prefs`: `tripId`, `userId`, `dietary[]`, `likes`,
+  `avoids`. Read access is `team`, since the spec makes these public.
+  Editing happens in a new section of the settings page.
+- `suggestOptions` makes 10 places using the group's dietary tags and likes.
+  Research returns an `accommodates[]` list.
+- **Warning:**
+  - A place that doesn't suit everyone **stays on the list** with a warning
+    triangle and a short note, for example "may not suit: vegetarian (2)".
+  - It's computed in `src/lib/food-warnings.ts`, a pure function with unit
+    tests.
+- Prices are for reference only. The list is ranked by votes and never
+  locked.
+- **Done when:**
+  - B marks vegetarian; suggestions reflect it.
+  - A place without vegetarian options shows the triangle.
+  - Ranking works.
+
+---
+
+## 5. Integrations
+
+| Integration | Used for | Module |
 |---|---|---|
-| `createTrip` | any signed-in | creates trip + organizer `team_members` row; random 10+ char invite code |
-| `joinTrip` | any signed-in | looks up by `inviteCode`; idempotent; reactivates `left` |
-| `leaveTrip` | member | organizer can't leave (v1) |
-| `rotateInviteCode` | organizer | |
-| `createDecision` | member | deadline optional, must be future |
-| `addOption` | member | decision must be open; URL validated (http/https only) |
-| `toggleVote` | member | decision open; one row per (option,user) |
-| `lockDecision` | organizer | picks given option or current top tally; tie → refuse and ask organizer to pick |
-| `setMyConstraints` | member | upserts own row; sets `hasConstraints` on membership; then `refreshGroupFit` for open decisions |
-| `researchOption` | member | per-trip cap (e.g. 25 calls); sets `running` → `done`/`failed` |
-| `refreshGroupFit` | member | reads constraints RBAC-off **filtered to active members**, writes `computeGroupFit` output |
+| Synced records, team read rule, owner-only reads | Live data, per-trip isolation, private budgets | All |
+| Server actions | Every write, and the security checks on it | All |
+| `exa/search` | Sources for options | 3, 6, 7 |
+| `anthropic/chat-completion` | Structured summaries and prices | 3, 6, 7 |
+| Cron + `email/send` | Auto-lock and reminders | 3 (stretch) |
 
-Group fit math is a pure function, `src/lib/group-fit.ts` (done, with tests
-asserting no user ids or individual budgets appear in output). Under 3
-responders the UI softens the message ("not enough responses yet") since
-counts could identify someone.
-
----
-
-## 5. AI & integrations
-
-Check exact shapes first: `npx deepspace integrations info exa/search`,
-`… anthropic/chat-completion`, `… email/send`.
-
-**`researchOption` pipeline:**
-1. `exa/search` with the option title (+ trip destination hint), a few results.
-2. `anthropic/chat-completion`: instructions say to treat page text as
-   **untrusted data**, extract only `{ summary, estPricePerPerson, pros[],
-   cons[], accommodates[], sources[] }` as JSON, and cite only URLs that
-   appear in the search results. Validate with zod; on failure → `failed`.
-   No tools are given to this model call, so injected page text can't trigger
-   actions.
-3. Store `research`, run group fit, set `done`. Cache: re-research only on an
-   explicit "refresh".
-
-**Agent tools (`src/ai/tools.ts` → `registerAgent`)**: add three app tools
-that wrap actions (`trip_overview`, `group_fit`, `research_option`) so the in-app
-assistant and a local agent (`npx deepspace agent invoke trip-quorum …`)
-share one definition. Trim the built-in allowlist to read tools — writes are
-already blocked by RBAC, but a smaller tool list is clearer. Tools run as the
-caller, so the agent **cannot** read other people's constraints. Test this
-explicitly by asking the agent "what is Alice's budget?"
-
-**Cron (`src/cron.ts`)**, every 15 minutes, idempotent:
-- open decisions with a deadline in under 24h and no `reminderSentAt` → `email/send` to
-  members with no vote on that decision (`reply_to` = organizer email); set
-  `reminderSentAt`.
-- open decisions past deadline → lock with top option (tie → leave open,
-  email organizer).
-
-**Deliberately not used:** payments (nothing to sell or book), fal images
-(decoration, not decisions), Google OAuth calendar (each user must grant consent; the best follow-up
-for date-picking), Composio, messaging feature (public channels only by
-design, per SDK docs — would leak across trips), Yjs documents (no shared
-long-form text to co-edit).
+**Deliberately not used (each gets a line in the writeup):**
+- **Payments:** nothing is booked.
+- **fal image generation:** decoration, not a decision.
+- **Google OAuth calendar:** each user would have to grant access, and
+  calendar syncing is out of scope.
+- **The messaging feature:** DeepSpace's own docs say its channels are
+  public, which would leak across trips. Notes cover the need.
+- **Collaborative documents (Yjs):** the spec chose a sticky-note board over
+  a shared page.
+- **Maps:** out of scope; the gas distance is typed in by hand.
+- **The in-app AI assistant:** not in the spec.
 
 ---
 
-## 6. Pages (`src/pages/`)
+## 6. AI limits
 
-- `index.tsx` (static landing, replace starter copy)
-- `(app)/(protected)/trips.tsx`: my trips + create
-- `(app)/(protected)/join/[code].tsx`: join flow (then remount scope)
-- `(app)/(protected)/trip/[tripId].tsx`: decisions, options, votes, presence
-- `(app)/(protected)/trip/[tripId]/me.tsx`: my private constraints (clearly
-  labelled "only you can see this")
-- `(app)/(protected)/trip/[tripId]/plan.tsx`: locked decisions = final plan
-
-Presence: `/ws/presence/trip:<tripId>` (or the SDK presence hook) for
-"who's looking at this trip" avatars. Check on day 2 whether the presence
-route checks trip membership; if not, anyone with a trip id could see who is
-online in it. In that case, gate the route in `realtime-routes.ts` with a
-`team_members` lookup, or drop presence. Give the app its own visual design
-instead of the starter theme.
+- **About 25 AI research calls per trip**, shared by housing, activities and
+  food. Stored as `trips.researchCallsUsed` and checked before every Exa call.
+  At the cap, show a clear message instead of researching.
+- **"Price not found"** instead of guessing, and the option is left out of
+  the fit check. v1 has no manual price entry; it's a candidate for later.
+- **Cache:** an option isn't re-researched unless someone asks or it's
+  marked `stale`.
+- The spec says these limits can change later. They're constants in
+  `src/constants.ts`.
 
 ---
 
 ## 7. Testing
 
-- **Unit (done):** schema rules + lint, group-fit privacy. Run `npm run test:unit`
-  (needs a registered app id; see §9).
-- **Two-user e2e (`tests/*.spec.ts`, `npx deepspace test run all`):**
-  1. A creates trip; B joins via code; B sees trip without manual reload.
-  2. B sets budget 300. A queries `constraints`: gets 0 rows. A asks the agent
-     for B's budget: refused or empty.
-  3. Non-member C calls `addOption` / `toggleVote` with A's tripId → `not_a_member`.
-  4. A and B vote; tallies update live in both browsers.
-  5. B tries `lockDecision` → `not_organizer`. A locks → B's `toggleVote` refused.
-- **Manual:** use it with friends for a real trip; log what broke.
+- **Unit tests (done):** schema rules and lint, fit counts, price band,
+  budget summary. Add `overlap`, `bestWindows`, `food-warnings` and gas math
+  as each module is built.
+- **Two-user end-to-end tests** in `tests/*.spec.ts`, run with
+  `npx deepspace test run all`: one spec file per module, covering its
+  "done when" list.
+- **Privacy tests, which must always pass:**
+  - A can't read B's private budget through `budgets`, `public_budgets`,
+    `options.fit`, or a non-member action call.
+  - The price band is null with fewer than 3 budgets.
+- **Real-world testing:** first, mock trips of 2 to 3 people, to test joining,
+  dates and voting. Then the 5 to 6 person Cachuma Lake group as the final
+  test. Log what broke for the writeup.
 
 ---
 
-## 8. Schedule
-
-| Day | Goal | Done when |
-|---|---|---|
-| 0 (today) | Scaffold, schemas, access helpers, plan | ✅ typecheck + 6 unit tests pass offline |
-| 1 | Register, **choose GitHub source**, deploy empty app; `createTrip`/`joinTrip`; trips + join pages | two browsers: create, join, see trip; membership-refresh bug verified |
-| 2 | Decisions, options, `toggleVote`, `lockDecision`, presence; trip page | live voting across two users; lock enforced server-side |
-| 3 | Constraints page + action, `researchOption`, group fit, agent tools | research card with sources; fit badge; agent privacy test passes |
-| 4 | Cron reminders + auto-lock, plan page, visual design pass | email received; deadline lock observed in `deepspace logs` |
-| 5 | e2e suite, real-trip dry run, fixes, writeup, final deploy | important path green on prod URL |
-
-If behind schedule, cut in this order: auto-lock (keep manual lock) → agent
-tools (keep research button) → presence avatars. Never cut: privacy of constraints,
-server-side vote/lock checks.
-
----
-
-## 9. Commands (run on your machine)
+## 8. Getting it running (on your machine)
 
 ```sh
-cd trip-quorum
-npx deepspace auth whoami          # confirm the right account BEFORE registering
+cd trip-quorum && npm install
+npx deepspace auth login
+npx deepspace auth whoami          # make sure it's the right account
 npx deepspace app init --json      # mints the app id into wrangler.toml
-# Pick the source authority ONCE (permanent): for a GitHub repo, add the
-# remote before the first deploy; do NOT run `deepspace push` first.
+# Decide where the code lives ONCE (permanent). For GitHub, add the remote
+# BEFORE the first deploy, and don't run `deepspace push`.
 git remote add origin git@github.com:<you>/trip-quorum.git
-npm run validate                   # tsc + unit tests
-npx deepspace integrations info exa/search
-npx deepspace integrations info anthropic/chat-completion
-npx deepspace integrations info email/send
-npx deepspace dev start
-npx deepspace deploy
+npm run validate                   # type check + unit tests
+npx deepspace dev start            # local
+npx deepspace deploy               # → trip-quorum.app.space
 ```
 
 ---
 
-## 10. Agent log (for the writeup)
+## 9. Agent log (for the writeup)
 
 | When | Agent did | I verified / changed |
 |---|---|---|
-| Day 0 | Scaffolded with `create-deepspace` 0.44.2 (upgraded npm 10→11 per its engine requirement). Read SDK types + runtime to pick the access model (`'team'` + `team_members`), found create-without-membership gap and the `UserId` notify bug. Wrote schemas, membership guard, group-fit function + tests, this plan. | _fill in: did you read the schema rules? agree with all-writes-via-actions?_ |
+| Day 0 | Scaffolded the app (create-deepspace 0.44.2). Read the SDK source to choose the access model. Found the create-without-membership gap and the `UserId` join-refresh bug. Wrote the first plan. | _fill in_ |
+| Planning | Voice sessions: wrote Spec v1, the five module docs and the priorities list, then merged them into the Master Spec, with conflicts resolved, the screens and flow, edge cases and AI limits. | You made every product decision: per-category budgets, essentials-only total, public food prefs, wait for dates before housing, a sticky-note board, warnings instead of filtering out food places. |
+| Plan update | Rewrote this plan and the code to match the Master Spec. Cut the code back to Core only. Replaced the single private constraints table with private `budgets` plus a `public_budgets` projection, so each category gets its own privacy switch. Added the rounded group price band. Tests: 11 passing. | _fill in: read §2 and §4.1 before building_ |
