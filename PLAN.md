@@ -1,7 +1,8 @@
 # Trip Quorum: build plan
 
 This is the code plan for the
-[Trip Quorum Master Spec](https://claude.ai/artifact/GvLauMNkadF9e9mYWSecsH).
+[Trip Quorum Master Spec](https://claude.ai/artifact/GvLauMNkadF9e9mYWSecsH)
+(copy in `docs/SPEC.md`). How to work through it is in `docs/BUILD_GUIDE.md`.
 **The spec decides what the app does; this file decides how it's built.** If
 they disagree, the spec wins. Fix this file to match it.
 
@@ -121,6 +122,8 @@ the whole spec and ask for the app.
       calls it again)
     - `addOption` (paste a link or a name, then research it)
     - `researchOption`, `toggleVote`
+    - `setOptionPrice` (any member fills in a missing price; refits
+      housing; adds a `priceSource` of ai/member to options)
     - `setDeadline`/`clearDeadline` and `lockBoard` (lockable boards only)
 - **AI research pipeline**, used by `suggestOptions` and `researchOption`:
   1. Check the trip's cap (§6), then increment `researchCallsUsed`.
@@ -358,7 +361,9 @@ when you start building it.
   food. Stored as `trips.researchCallsUsed` and checked before every Exa call.
   At the cap, show a clear message instead of researching.
 - **"Price not found"** instead of guessing, and the option is left out of
-  the fit check. v1 has no manual price entry; it's a candidate for later.
+  the fit check until someone adds a price. Any member can set it with
+  `setOptionPrice` (§3), and the card then labels it "added by a member", not
+  "researched".
 - **Cache:** an option isn't re-researched unless someone asks or it's
   marked `stale`.
 - The spec says these limits can change later. They're constants in
