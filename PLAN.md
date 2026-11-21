@@ -172,8 +172,15 @@ when you start building it.
      - four budgets, each with a private/public switch (private by default);
      - the essentials-only total and over-budget flags;
      - a clear label: "only you can see private budgets".
-  5. **Trip page** (`/trip/[id]`): members list and empty module tabs. Each
-     tab appears as its module ships.
+  5. **Trip page** (`/trip/[id]`): `TripOverview`, laid out in
+     `docs/LAYOUT.md`, not tabs. It has the header (members as overlapping
+     profile-picture circles, your essentials total, a link to settings), a
+     `DatesBar` slot, and four section slots built on one shared
+     `ExpandableSection`, which owns the expand animation, focus handling and
+     `?section=` URL state. A section that can't be used yet shows disabled
+     (grayed card on mobile, thin labeled bar on desktop) and shows a notice
+     when clicked. Each module later fills its slot with a `<Name>Summary`
+     and a `<Name>Full` component.
 - The starter's in-app AI chat isn't in the spec. Hide it in v1. Its tools
   would run as the signed-in user, so they couldn't read anyone else's
   budgets anyway.
@@ -187,6 +194,9 @@ when you start building it.
   - A non-member calling `setMyBudgets` with A's `tripId` gets `not_a_member`.
 
 ### 4.2 Dates
+
+- **Trip page:** `DatesBar` (the summary in the bar) with its calendar
+  pop-up inside (`docs/LAYOUT.md`), not an expanding section.
 
 - **Data:**
   - `availability`: `tripId`, `userId`, `start`, `end`. Dates are stored as
@@ -214,10 +224,13 @@ when you start building it.
   - When the new dates are locked, the board reopens and stale options can be
     re-researched; each re-research counts toward the cap.
 - **Done when:** two users add ranges and the heatmap counts match. The
-  organizer locks, and the dates tab shows locked dates for both. A member
+  organizer locks, and the date bar shows locked dates for both. A member
   calling `lockDates` is refused.
 
 ### 4.3 Housing (builds the engine)
+
+- **Trip page:** `HousingSummary` (`limit` 1 on mobile, 3 on desktop) and
+  `HousingFull`, in the Housing section.
 
 - **Data:** `boards`, `options`, `votes` (§3). The housing board is
   `lockable`, has `fit` on its options, and starts as `waiting_for_dates`.
@@ -243,7 +256,7 @@ when you start building it.
     deadline.
   - Confirm the email request shape first: `integrations info email/send`.
 - **Done when (two browsers):**
-  - Before dates lock, the housing tab says it's waiting.
+  - Before dates lock, the Housing section says it's waiting.
   - After lock, suggestions show sources.
   - A pasted link gets researched.
   - Votes update live in both browsers.
@@ -252,6 +265,8 @@ when you start building it.
   - The cap message shows at 25 calls (set it to 2 temporarily to test).
 
 ### 4.4 Transportation
+
+- **Trip page:** `TravelSummary` and `TravelFull`, in the Travel section.
 
 - **Data:**
   - Added to `trips`: `defaultMeetingPoint`.
@@ -288,6 +303,8 @@ when you start building it.
 
 ### 4.5 Notes
 
+- **Trip page:** `NotesSummary` and `NotesFull`, in the Notes section.
+
 - **Data:** `notes`: `tripId`, `authorId`, `text`.
 - **Actions:**
   - `addNote`.
@@ -304,6 +321,9 @@ when you start building it.
 
 ### 4.6 Activities (reuses engine)
 
+- **Trip page:** the Activities part of `AdditionalSummary` and
+  `AdditionalFull`, in the shared Additional section.
+
 - The board isn't lockable and has no deadline. The list is ranked by votes.
 - `suggestOptions` makes 10. "Search for more" calls it again, and anyone can
   paste a link.
@@ -313,6 +333,9 @@ when you start building it.
   changes as people vote.
 
 ### 4.7 Food (reuses engine)
+
+- **Trip page:** the Food part of `AdditionalSummary` and `AdditionalFull`,
+  next to Activities in the Additional section.
 
 - **Data:** `food_prefs`: `tripId`, `userId`, `dietary[]`, `likes`,
   `avoids`. Read access is `team`, since the spec makes these public.
@@ -418,7 +441,8 @@ is Phase 1 of `docs/BUILD_GUIDE.md`.
 
 | When | Agent did | I verified / changed |
 |---|---|---|
-| Day 0 | Scaffolded the app (create-deepspace 0.44.2). Read the SDK source to choose the access model. Found the create-without-membership gap and the `UserId` join-refresh bug. Wrote the first plan. | _fill in_ |
+| Day 0 | Scaffolded the app (create-deepspace 0.44.2). Read the SDK source to choose the access model. Found the create-without-membership gap and the `UserId` join-refresh bug. Wrote the first plan. | I identified the project requirements and brainstormed the idea. |
 | Planning | Voice sessions: wrote Spec v1, the five module docs and the priorities list, then merged them into the Master Spec, with conflicts resolved, the screens and flow, edge cases and AI limits. | You made every product decision: per-category budgets, essentials-only total, public food prefs, wait for dates before housing, a sticky-note board, warnings instead of filtering out food places. |
-| Plan update | Rewrote this plan and the code to match the Master Spec. Cut the code back to Core only. Replaced the single private constraints table with private `budgets` plus a `public_budgets` projection, so each category gets its own privacy switch. Added the rounded group price band. Tests: 14 passing (11 new). | _fill in: read §2 and §4.1 before building_ |
-| Setup (2026-11-21) | Phase 1: renamed the project from Trip Quorum to Co-farer in code, config and docs (your call). Registered the app as `co-farer`, added the GitHub remote and pushed, then made the first deploy to https://co-farer.app.space; `app source` confirms the code lives on GitHub. Validate: 14 tests pass. `alice@`/`bob@deepspace.test` were already taken (test emails are global across all developers), so the test accounts are `alice-cofarer@` and `bob-cofarer@deepspace.test`. Saved the Exa and Anthropic request shapes to `docs/integrations.md`; Anthropic printed no output schema. | _fill in: confirm sign-in works on the live link_ |
+| Plan update | Rewrote this plan and the code to match the Master Spec. Cut the code back to Core only. Replaced the single private constraints table with private `budgets` plus a `public_budgets` projection, so each category gets its own privacy switch. Added the rounded group price band. Tests: 14 passing (11 new). | Section 2 and 4.1 relating to data access and core application functions have been read and verified. The application's goals have been laid out correctly. |
+| Setup (2026-11-21) | Phase 1: renamed the project from Trip Quorum to Co-farer in code, config and docs (your call). Registered the app as `co-farer`, added the GitHub remote and pushed, then made the first deploy to https://co-farer.app.space; `app source` confirms the code lives on GitHub. Validate: 14 tests pass. `alice@`/`bob@deepspace.test` were already taken (test emails are global across all developers), so the test accounts are `alice-cofarer@` and `bob-cofarer@deepspace.test`. Saved the Exa and Anthropic request shapes to `docs/integrations.md`; Anthropic printed no output schema. | I could reach the website and sign in with my email successfully. |
+| Layout update (2026-11-21) | Added `docs/LAYOUT.md` and the two mockups. The trip page is now one overview (`TripOverview`) instead of tabs: a header with profile-picture circles, a date bar whose calendar opens as a pop-up (no dimmed screen), and four expanding sections. Activities and Food share "Additional". Unavailable sections stay visible but disabled, which replaces "hidden". Before dates lock, the date bar shows only "Not locked yet"; the overlap hint moves to the best-window stretch. Before estimates exist, the header total reads "Budget $X · no estimates yet". Updated the spec, plan and build guide to match. UI only: no actions, schemas or privacy rules changed. | _fill in_ |

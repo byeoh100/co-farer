@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Co-farer mockup: desktop</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+:root{--surface-1:#f7f6f3;--surface-2:#ffffff;--bg-neutral:#efede8;--border:rgba(0,0,0,.10);--border-strong:rgba(0,0,0,.18);--border-accent:#378ADD;--text-primary:#1f1e1d;--text-secondary:#6b6a66;--text-muted:#9a9893;--text-accent:#185FA5;--bg-accent:#E6F1FB;--text-success:#3B6D11;--bg-success:#EAF3DE;--text-warning:#854F0B;--bg-warning:#FAEEDA;--radius:8px}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:24px;background:var(--surface-1);color:var(--text-primary)}
+button{font:inherit;color:inherit;background:transparent;border:0.5px solid var(--border-strong);border-radius:8px;padding:6px 12px;cursor:pointer}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.mock-note{max-width:900px;margin:0 auto 16px;font-size:13px;color:var(--text-secondary)}
+</style>
+</head>
+<body>
+<p class="mock-note">Reference mockup for docs/LAYOUT.md. Example data only; layout and behavior, not final styling. Click the date bar or a column.</p>
+<h2 class="sr-only">Desktop mockup of the Co-farer trip page: a full-width date bar that expands into a calendar, and four columns that each expand across the page when opened.</h2>
+<style>
+.dq-win{max-width:900px;margin:0 auto;border:0.5px solid var(--border);border-radius:12px;background:var(--surface-2);overflow:hidden}
+.dq-area{position:relative;padding:14px;background:var(--surface-1);min-height:470px}
+.dq-col{background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-direction:column;min-width:0;cursor:pointer}
+.dq-head{display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer;background:none;border:none;padding:0;font:inherit;color:inherit;text-align:left;width:100%}
+.dq-item{padding:8px 0;border-bottom:0.5px solid var(--border);font-size:12px;line-height:1.4}
+.dq-sub{font-size:11px;color:var(--text-secondary)}
+.dq-pill{font-size:11px;padding:1px 7px;border-radius:999px;white-space:nowrap}
+.dq-cal{max-height:0;overflow:hidden;transition:max-height .35s ease}
+.dq-cal.open{max-height:120px}
+.dq-day{height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px}
+.dq-sheet{position:absolute;background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;transition:top .4s cubic-bezier(.2,.8,.2,1),left .4s cubic-bezier(.2,.8,.2,1),width .4s cubic-bezier(.2,.8,.2,1),height .4s cubic-bezier(.2,.8,.2,1)}
+.dq-sb{opacity:0;transition:opacity .2s}
+.dq-sheet.full .dq-sb{opacity:1;transition-delay:.2s}
+.dq-more{font-size:11px;color:var(--text-accent);margin-top:auto;padding-top:8px}
+</style>
+<div class="dq-win">
+<div style="display:flex;gap:6px;align-items:center;padding:8px 12px;border-bottom:0.5px solid var(--border)"><span style="width:9px;height:9px;border-radius:50%;background:var(--border-strong)"></span><span style="width:9px;height:9px;border-radius:50%;background:var(--border-strong)"></span><span style="width:9px;height:9px;border-radius:50%;background:var(--border-strong)"></span><span style="font-size:11px;color:var(--text-muted);margin-left:10px">co-farer.app.space/trip/cachuma</span></div>
+<div class="dq-area" id="area">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+<div><span style="font-size:16px;font-weight:500">Cachuma Lake</span><span style="font-size:12px;color:var(--text-secondary);margin-left:8px">Spring break · 6 people</span></div>
+<div style="display:flex;gap:10px;align-items:center;font-size:12px;color:var(--text-secondary)"><span>Your essentials: <span style="color:var(--text-primary)">$63 of $90</span></span><button style="font-size:12px;padding:4px 10px"><i class="ti ti-settings" aria-hidden="true"></i> My settings</button></div>
+</div>
+<button id="dateBtn" style="width:100%;text-align:left;background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;cursor:pointer;font:inherit;color:inherit">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div style="display:flex;gap:10px;align-items:center"><i class="ti ti-calendar" style="font-size:18px;color:var(--text-accent)" aria-hidden="true"></i><span style="font-size:14px;font-weight:500">Mar 19 – 21</span><span class="dq-pill" style="background:var(--bg-success);color:var(--text-success)">Locked</span><span style="font-size:12px;color:var(--text-secondary)">6 of 6 free · best window of 3 nights</span></div>
+<span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px">Calendar <i class="ti ti-chevron-down" id="chev" style="transition:transform .3s" aria-hidden="true"></i></span></div>
+<div class="dq-cal" id="cal"><div style="display:grid;grid-template-columns:repeat(14,1fr);gap:4px;padding-top:10px" id="days"></div><div class="dq-sub" style="margin-top:6px">Darker = more people free. Outlined = locked dates.</div></div>
+</button>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">
+<div class="dq-col" data-k="housing"><div class="dq-head"><div><div style="display:flex;gap:6px;align-items:center"><i class="ti ti-home" style="font-size:16px;color:var(--text-accent)" aria-hidden="true"></i><span style="font-size:14px;font-weight:500">Housing</span></div><div class="dq-sub">Voting closes Mar 1</div></div><i class="ti ti-arrows-maximize" style="font-size:14px;color:var(--text-muted)" aria-hidden="true"></i></div>
+<div class="dq-item"><div style="display:flex;justify-content:space-between;gap:4px"><span>Lakeview yurt</span><span class="dq-pill" style="background:var(--bg-success);color:var(--text-success)">4</span></div><div class="dq-sub">$48 / person · fits all</div></div>
+<div class="dq-item"><div style="display:flex;justify-content:space-between;gap:4px"><span>Campsite loop B</span><span class="dq-pill" style="background:var(--bg-neutral);color:var(--text-secondary)">2</span></div><div class="dq-sub">$15 / person</div></div>
+<div class="dq-item" style="border:none"><div style="display:flex;justify-content:space-between;gap:4px"><span>Lakeside cabin</span><span class="dq-pill" style="background:var(--bg-neutral);color:var(--text-secondary)">0</span></div><div class="dq-sub" style="color:var(--text-warning)">Over budget for 2 of 6</div></div>
+<div class="dq-more">Open housing</div></div>
+<div class="dq-col" data-k="travel"><div class="dq-head"><div><div style="display:flex;gap:6px;align-items:center"><i class="ti ti-car" style="font-size:16px;color:var(--text-accent)" aria-hidden="true"></i><span style="font-size:14px;font-weight:500">Travel</span></div><div class="dq-sub">From campus</div></div><i class="ti ti-arrows-maximize" style="font-size:14px;color:var(--text-muted)" aria-hidden="true"></i></div>
+<div class="dq-item"><div style="display:flex;justify-content:space-between;gap:4px"><span>Maya's car</span><span class="dq-sub">3 / 4</span></div><div class="dq-sub">1 seat left</div></div>
+<div class="dq-item"><div style="display:flex;justify-content:space-between;gap:4px"><span>Lee's car</span><span class="dq-sub">4 / 4</span></div><div class="dq-sub">Full</div></div>
+<div class="dq-item" style="border:none"><div style="display:flex;justify-content:space-between;gap:4px"><span>Riley flies</span><i class="ti ti-plane" style="font-size:14px;color:var(--text-secondary)" aria-hidden="true"></i></div><div class="dq-sub">Lands Fri 3:10 pm</div></div>
+<div class="dq-more">Open travel</div></div>
+<div class="dq-col" data-k="extras"><div class="dq-head"><div><div style="display:flex;gap:6px;align-items:center"><i class="ti ti-compass" style="font-size:16px;color:var(--text-accent)" aria-hidden="true"></i><span style="font-size:14px;font-weight:500">Additional</span></div><div class="dq-sub">Ranked by votes</div></div><i class="ti ti-arrows-maximize" style="font-size:14px;color:var(--text-muted)" aria-hidden="true"></i></div>
+<div class="dq-sub" style="margin-top:8px">Activities</div>
+<div class="dq-item"><div style="display:flex;justify-content:space-between"><span>Kayak rental</span><span>5</span></div><div class="dq-sub">~$25</div></div>
+<div class="dq-sub" style="margin-top:8px">Food</div>
+<div class="dq-item"><div style="display:flex;justify-content:space-between"><span>Taco spot</span><span>4</span></div><div class="dq-sub">~$14</div></div>
+<div class="dq-item" style="border:none"><div style="display:flex;justify-content:space-between"><span><i class="ti ti-alert-triangle" style="color:var(--text-warning)" aria-hidden="true"></i> BBQ house</span><span>2</span></div><div class="dq-sub" style="color:var(--text-warning)">Vegetarian (2)</div></div>
+<div class="dq-more">Open additional</div></div>
+<div class="dq-col" data-k="notes"><div class="dq-head"><div><div style="display:flex;gap:6px;align-items:center"><i class="ti ti-note" style="font-size:16px;color:var(--text-accent)" aria-hidden="true"></i><span style="font-size:14px;font-weight:500">Notes</span></div><div class="dq-sub">5 notes</div></div><i class="ti ti-arrows-maximize" style="font-size:14px;color:var(--text-muted)" aria-hidden="true"></i></div>
+<div style="background:var(--bg-warning);color:var(--text-warning);border-radius:8px;padding:8px;font-size:12px;margin-top:8px">Bringing the speaker<div style="font-size:11px">Jordan</div></div>
+<div style="background:var(--bg-warning);color:var(--text-warning);border-radius:8px;padding:8px;font-size:12px;margin-top:6px">Don't forget sunscreen<div style="font-size:11px">Maya</div></div>
+<div style="background:var(--bg-neutral);color:var(--text-muted);border-radius:8px;padding:8px;font-size:12px;margin-top:6px">Can bring a cooler<div style="font-size:11px">Alex · has left</div></div>
+<div class="dq-more">Open notes</div></div>
+</div>
+</div></div>
+<script>
+const free={13:1,14:2,15:3,16:3,17:4,18:5,19:6,20:6,21:6,22:4,23:3,24:2,25:2,26:1};const days=document.getElementById('days');
+Object.keys(free).forEach(k=>{const d=+k,n=free[k],el=document.createElement('div');el.className='dq-day';el.textContent=d;el.style.background='rgba(29,158,117,'+(n/6*0.75).toFixed(2)+')';el.style.color=n>=4?'#04342C':'var(--text-primary)';if(d>=19&&d<=21)el.style.outline='2px solid var(--border-accent)';days.appendChild(el)});
+const cal=document.getElementById('cal'),chev=document.getElementById('chev');
+document.getElementById('dateBtn').addEventListener('click',()=>{cal.classList.toggle('open');chev.style.transform=cal.classList.contains('open')?'rotate(180deg)':''});
+const F={
+housing:'<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">'+['Lakeview yurt|$48 / person · fits all 6|4 votes|Lake views, sleeps 6, 2 min to water|No kitchen','Campsite loop B|$15 / person · fits all 6|2 votes|Cheapest, fire pits|Bring tents, shared restrooms','Lakeside cabin|$92 / person · over budget for 2 of 6|0 votes|Full kitchen, hot tub|Most expensive'].map(s=>{const p=s.split('|');return '<div style="border:0.5px solid var(--border);border-radius:12px;padding:12px;font-size:12px"><div style="font-size:14px;font-weight:500">'+p[0]+'</div><div class="dq-sub">'+p[1]+'</div><div style="margin:8px 0;color:var(--text-success)">+ '+p[3]+'</div><div style="color:var(--text-secondary)">− '+p[4]+'</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px"><span>'+p[2]+'</span><button style="font-size:12px;padding:3px 10px">Vote</button></div></div>'}).join('')+'</div><div style="display:flex;gap:8px;margin-top:12px"><button style="font-size:12px">Suggest more</button><button style="font-size:12px">Paste a link</button></div>',
+travel:'<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;font-size:12px"><div style="border:0.5px solid var(--border);border-radius:12px;padding:12px"><div style="font-size:14px;font-weight:500">Maya\'s car</div><div class="dq-sub">3 of 4 seats</div><div style="margin:8px 0">Maya, Jordan, Sam</div><button style="font-size:12px;padding:3px 10px">Claim seat</button></div><div style="border:0.5px solid var(--border);border-radius:12px;padding:12px"><div style="font-size:14px;font-weight:500">Lee\'s car</div><div class="dq-sub">Full</div><div style="margin:8px 0">Lee, Alex, Casey, Dee</div></div><div style="border:0.5px solid var(--border);border-radius:12px;padding:12px"><div style="font-size:14px;font-weight:500">Other ways</div><div style="margin:8px 0">Riley flies · lands SBA Fri 3:10 pm</div><div class="dq-sub">Not decided: nobody</div></div></div>',
+extras:'<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:12px"><div><div style="font-size:14px;font-weight:500;margin-bottom:4px">Activities</div><div class="dq-item" style="display:flex;justify-content:space-between"><span>Kayak rental · ~$25</span><span>5 votes</span></div><div class="dq-item" style="display:flex;justify-content:space-between"><span>Sunset hike · free</span><span>3 votes</span></div><div class="dq-item" style="display:flex;justify-content:space-between"><span>Wildlife boat tour · ~$30</span><span>1 vote</span></div></div><div><div style="font-size:14px;font-weight:500;margin-bottom:4px">Food</div><div class="dq-item" style="display:flex;justify-content:space-between"><span>Taco spot · ~$14</span><span>4 votes</span></div><div class="dq-item" style="display:flex;justify-content:space-between"><span><i class="ti ti-alert-triangle" style="color:var(--text-warning)" aria-hidden="true"></i> BBQ house · ~$22<br><span style="color:var(--text-warning)">May not suit: vegetarian (2)</span></span><span>2 votes</span></div></div></div>',
+notes:'<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;font-size:12px">'+['Bringing the speaker|Jordan','Don\'t forget sunscreen|Maya','Who has a camp stove?|Sam','Leaving campus 9 am Fri|Lee'].map(s=>{const p=s.split('|');return '<div style="background:var(--bg-warning);color:var(--text-warning);border-radius:8px;padding:10px;min-height:60px">'+p[0]+'<div style="font-size:11px;margin-top:6px">'+p[1]+'</div></div>'}).join('')+'<div style="background:var(--bg-neutral);color:var(--text-muted);border-radius:8px;padding:10px;min-height:60px">Can bring a cooler<div style="font-size:11px;margin-top:6px">Alex · has left</div></div></div><button style="font-size:12px;margin-top:12px"><i class="ti ti-plus" aria-hidden="true"></i> Add note</button>'};
+const T={housing:'Housing',travel:'Travel',extras:'Additional',notes:'Notes'};
+const area=document.getElementById('area');let sheet=null,from=null;
+function rel(el){const a=el.getBoundingClientRect(),b=area.getBoundingClientRect();return{top:a.top-b.top,left:a.left-b.left,width:a.width,height:a.height}}
+function place(s,r){s.style.top=r.top+'px';s.style.left=r.left+'px';s.style.width=r.width+'px';s.style.height=r.height+'px'}
+document.querySelectorAll('.dq-col').forEach(col=>col.addEventListener('click',()=>{
+if(sheet)return;const k=col.dataset.k;from=rel(col);sheet=document.createElement('div');sheet.className='dq-sheet';place(sheet,from);
+sheet.innerHTML='<div class="dq-sb" style="padding:16px;height:100%;overflow:auto;box-sizing:border-box"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><button class="dq-back" aria-label="Back to overview" style="padding:4px 8px"><i class="ti ti-arrows-minimize" aria-hidden="true"></i> Close</button><span style="font-size:16px;font-weight:500">'+T[k]+'</span></div>'+F[k]+'</div>';
+area.appendChild(sheet);sheet.getBoundingClientRect();
+requestAnimationFrame(()=>{place(sheet,{top:8,left:8,width:area.clientWidth-16,height:area.clientHeight-16});sheet.classList.add('full')});
+sheet.querySelector('.dq-back').addEventListener('click',e=>{e.stopPropagation();sheet.classList.remove('full');place(sheet,from);const s=sheet;setTimeout(()=>{s.remove();sheet=null},420)})}));
+</script>
+</body>
+</html>

@@ -74,11 +74,15 @@ Dates are built before housing because housing research waits for locked dates. 
 
 ## 6. Activities
 
+- Shares the trip page's **Additional** section with Food (`docs/LAYOUT.md`). It is still built as its own module.
+
 - The AI suggests **10 activities**; anyone can paste links or search for more.
 - Each shows a description, estimated price per person (reference only), and a source link.
 - The list is **ranked by votes**, never locked, with no deadline.
 
 ## 7. Food
+
+- Shares the trip page's **Additional** section with Activities (`docs/LAYOUT.md`). The Food part appears once this module is built.
 
 - Each person adds **dietary requirements and cuisine preferences**, visible to the group.
 - The AI suggests **10 places to eat** using the group's needs; anyone can paste links or search for more.
@@ -90,18 +94,18 @@ Dates are built before housing because housing research waits for locked dates. 
 1. **Landing page:** what the app is, plus sign in.
 2. **My trips:** the person's trips and a button to create one.
 3. **Join page:** where an invite link lands; shows the trip name and a join button.
-4. **Trip page:** the main hub, with a tab per module (dates, housing, travel, notes, activities, food). Tabs appear as each module is built.
+4. **Trip page:** one overview screen, not tabs, laid out in `docs/LAYOUT.md`. A header shows the members as overlapping profile-picture circles. A date bar opens the calendar in a pop-up. Below it are four sections (Housing, Travel, Additional, Notes); each shows a summary and expands to fill the page when opened. A section that can't be used yet stays visible: grayed out on mobile, a thin labeled bar on desktop, and clicking it shows a short notice instead of opening.
 5. **My settings for this trip:** budgets with their privacy switches, plus food preferences.
 
 After joining, a new member goes straight to their settings to fill in budgets and preferences, then on to the trip page.
 
 _Diagram (in the doc only): logic flow · setup, dates, housing, other tabs._
 
-New members go from the invite link to their settings, then the trip page. Housing opens only after the organizer locks the dates; the other tabs work any time.
+New members go from the invite link to their settings, then the trip page. Housing opens only after the organizer locks the dates; the other sections work any time.
 
 _Diagram (in the doc only): trip page sketch · housing tab._
 
-A rough sketch of the trip page on the housing tab. The trip name, votes, and budget counts are example data.
+A rough sketch of the trip page on the housing tab, from before the layout change; `docs/LAYOUT.md` and `docs/mockups/` replace it. The trip name, votes, and budget counts are example data.
 
 ## Edge cases
 

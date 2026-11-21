@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Co-farer mockup: mobile</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+:root{--surface-1:#f7f6f3;--surface-2:#ffffff;--bg-neutral:#efede8;--border:rgba(0,0,0,.10);--border-strong:rgba(0,0,0,.18);--border-accent:#378ADD;--text-primary:#1f1e1d;--text-secondary:#6b6a66;--text-muted:#9a9893;--text-accent:#185FA5;--bg-accent:#E6F1FB;--text-success:#3B6D11;--bg-success:#EAF3DE;--text-warning:#854F0B;--bg-warning:#FAEEDA;--radius:8px}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:24px;background:var(--surface-1);color:var(--text-primary)}
+button{font:inherit;color:inherit;background:transparent;border:0.5px solid var(--border-strong);border-radius:8px;padding:6px 12px;cursor:pointer}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.mock-note{max-width:900px;margin:0 auto 16px;font-size:13px;color:var(--text-secondary)}
+</style>
+</head>
+<body>
+<p class="mock-note">Reference mockup for docs/LAYOUT.md. Example data only; layout and behavior, not final styling. Tap the date bar or a card.</p>
+<h2 class="sr-only">Phone mockup of the Co-farer trip page: a date bar that expands into a calendar, and four summary cards that expand to fill the screen when tapped.</h2>
+<style>
+.tq-phone{width:360px;margin:0 auto;background:var(--surface-2);border:0.5px solid var(--border);border-radius:28px;padding:10px}
+.tq-screen{position:relative;height:620px;overflow:hidden;border-radius:20px;background:var(--surface-1)}
+.tq-card{background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;text-align:left;font:inherit;color:inherit;transition:border-color .15s}
+.tq-card:hover{border-color:var(--border-strong)}
+.tq-cal{max-height:0;overflow:hidden;transition:max-height .35s ease}
+.tq-cal.open{max-height:260px}
+.tq-day{height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px}
+.tq-sheet{position:absolute;background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;transition:top .38s cubic-bezier(.2,.8,.2,1),left .38s cubic-bezier(.2,.8,.2,1),width .38s cubic-bezier(.2,.8,.2,1),height .38s cubic-bezier(.2,.8,.2,1),border-radius .38s}
+.tq-body{opacity:0;transition:opacity .2s}
+.tq-sheet.full .tq-body{opacity:1;transition-delay:.18s}
+.tq-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid var(--border);font-size:13px}
+.tq-pill{font-size:11px;padding:2px 8px;border-radius:999px}
+</style>
+<div style="background:var(--bg-neutral);border-radius:12px;padding:1.25rem 0">
+<div class="tq-phone"><div class="tq-screen" id="screen">
+<div style="padding:16px">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+<div><div style="font-size:16px;font-weight:500">Cachuma Lake</div><div style="font-size:12px;color:var(--text-secondary)">Spring break · 6 people</div></div>
+<div style="display:flex">
+<span style="width:26px;height:26px;border-radius:50%;background:var(--bg-accent);color:var(--text-accent);font-size:11px;display:flex;align-items:center;justify-content:center;border:2px solid var(--surface-1)">MR</span>
+<span style="width:26px;height:26px;border-radius:50%;background:var(--bg-success);color:var(--text-success);font-size:11px;display:flex;align-items:center;justify-content:center;border:2px solid var(--surface-1);margin-left:-8px">JL</span>
+<span style="width:26px;height:26px;border-radius:50%;background:var(--bg-warning);color:var(--text-warning);font-size:11px;display:flex;align-items:center;justify-content:center;border:2px solid var(--surface-1);margin-left:-8px">+4</span>
+</div></div>
+<button class="tq-card" id="dateBtn" style="width:100%;margin-bottom:12px">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div style="display:flex;gap:10px;align-items:center"><i class="ti ti-calendar" style="font-size:20px;color:var(--text-accent)" aria-hidden="true"></i>
+<div><div style="font-size:14px;font-weight:500">Mar 19 – 21</div><div style="font-size:12px;color:var(--text-secondary)">Locked · 6 of 6 free</div></div></div>
+<i class="ti ti-chevron-down" id="dateChev" style="font-size:18px;color:var(--text-secondary);transition:transform .3s" aria-hidden="true"></i></div>
+<div class="tq-cal" id="cal"><div style="padding-top:12px">
+<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:11px;color:var(--text-muted);text-align:center;margin-bottom:4px"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+<div id="days" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px"></div>
+<div style="font-size:11px;color:var(--text-secondary);margin-top:8px">Darker = more people free. Outlined = locked dates.</div>
+</div></div>
+</button>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" id="grid">
+<button class="tq-card" data-k="housing"><i class="ti ti-home" style="font-size:18px;color:var(--text-accent)" aria-hidden="true"></i><div style="font-size:14px;font-weight:500;margin-top:6px">Housing</div><div style="font-size:12px;color:var(--text-secondary)">Lakeview yurt leads</div><div style="font-size:12px;margin-top:6px">4 of 6 votes</div></button>
+<button class="tq-card" data-k="travel"><i class="ti ti-car" style="font-size:18px;color:var(--text-accent)" aria-hidden="true"></i><div style="font-size:14px;font-weight:500;margin-top:6px">Travel</div><div style="font-size:12px;color:var(--text-secondary)">2 cars · 1 flying</div><div style="font-size:12px;margin-top:6px">1 seat left</div></button>
+<button class="tq-card" data-k="extras"><i class="ti ti-compass" style="font-size:18px;color:var(--text-accent)" aria-hidden="true"></i><div style="font-size:14px;font-weight:500;margin-top:6px">Additional</div><div style="font-size:12px;color:var(--text-secondary)">Activities and food</div><div style="font-size:12px;margin-top:6px">Kayaking on top</div></button>
+<button class="tq-card" data-k="notes"><i class="ti ti-note" style="font-size:18px;color:var(--text-accent)" aria-hidden="true"></i><div style="font-size:14px;font-weight:500;margin-top:6px">Notes</div><div style="font-size:12px;color:var(--text-secondary)">5 notes</div><div style="font-size:12px;margin-top:6px">"Bringing the speaker"</div></button>
+</div>
+<div style="margin-top:12px;background:var(--bg-neutral);border-radius:12px;padding:10px 12px;font-size:12px;color:var(--text-secondary);display:flex;justify-content:space-between"><span>Your essentials</span><span style="color:var(--text-primary)">$63 of $90 budget</span></div>
+</div>
+</div></div>
+</div>
+<script>
+const days=document.getElementById('days');
+const free={14:2,15:3,16:3,17:4,18:5,19:6,20:6,21:6,22:4,23:3,24:2,25:2,26:1,27:1};
+for(let i=0;i<14;i++){const d=14+i,n=free[d]||0,el=document.createElement('div');el.className='tq-day';el.textContent=d;el.style.background='rgba(29,158,117,'+(n/6*0.75).toFixed(2)+')';el.style.color=n>=4?'#04342C':'var(--text-primary)';if(d>=19&&d<=21)el.style.outline='2px solid var(--border-accent)';days.appendChild(el)}
+const cal=document.getElementById('cal'),chev=document.getElementById('dateChev');
+document.getElementById('dateBtn').addEventListener('click',()=>{cal.classList.toggle('open');chev.style.transform=cal.classList.contains('open')?'rotate(180deg)':''});
+const C={
+housing:{t:'Housing',s:'Voting closes Mar 1',b:'<div class="tq-row"><span>Lakeview yurt<br><span style="color:var(--text-secondary);font-size:12px">$48 per person · 3 sources</span></span><span class="tq-pill" style="background:var(--bg-success);color:var(--text-success)">4 votes</span></div><div class="tq-row"><span>Campsite loop B<br><span style="color:var(--text-secondary);font-size:12px">$15 per person</span></span><span class="tq-pill" style="background:var(--bg-neutral);color:var(--text-secondary)">2 votes</span></div><div class="tq-row"><span>Lakeside cabin<br><span style="color:var(--text-warning);font-size:12px">Over housing budget for 2 of 6</span></span><span class="tq-pill" style="background:var(--bg-neutral);color:var(--text-secondary)">0 votes</span></div><button style="width:100%;margin-top:12px">Suggest more</button>'},
+travel:{t:'Travel',s:'Leaving from campus',b:'<div class="tq-row"><span>Maya drives<br><span style="color:var(--text-secondary);font-size:12px">Maya, Jordan, Sam · 3 of 4 seats</span></span><button style="font-size:12px">Claim seat</button></div><div class="tq-row"><span>Lee drives<br><span style="color:var(--text-secondary);font-size:12px">4 of 4 seats</span></span><span class="tq-pill" style="background:var(--bg-neutral);color:var(--text-secondary)">Full</span></div><div class="tq-row"><span>Riley flies<br><span style="color:var(--text-secondary);font-size:12px">Lands SBA Fri 3:10 pm</span></span><i class="ti ti-plane" style="font-size:18px;color:var(--text-secondary)" aria-hidden="true"></i></div>'},
+extras:{t:'Additional',s:'Ranked by votes',b:'<div style="font-size:12px;color:var(--text-secondary);margin-top:6px">Activities</div><div class="tq-row"><span>Kayak rental · ~$25</span><span>5 votes</span></div><div class="tq-row"><span>Sunset hike · free</span><span>3 votes</span></div><div style="font-size:12px;color:var(--text-secondary);margin-top:14px">Food</div><div class="tq-row"><span>Taco spot · ~$14</span><span>4 votes</span></div><div class="tq-row"><span><i class="ti ti-alert-triangle" style="color:var(--text-warning)" aria-hidden="true"></i> BBQ house · ~$22<br><span style="color:var(--text-warning);font-size:12px">May not suit: vegetarian (2)</span></span><span>2 votes</span></div>'},
+notes:{t:'Notes',s:'Anyone can post',b:'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><div style="background:var(--bg-warning);color:var(--text-warning);border-radius:8px;padding:10px;font-size:12px">I\'m bringing the speaker<br><span>Jordan</span></div><div style="background:var(--bg-warning);color:var(--text-warning);border-radius:8px;padding:10px;font-size:12px">Don\'t forget sunscreen<br><span>Maya</span></div><div style="background:var(--bg-neutral);color:var(--text-muted);border-radius:8px;padding:10px;font-size:12px">Can bring a cooler<br><span>Alex · has left</span></div></div><button style="width:100%;margin-top:12px"><i class="ti ti-plus" aria-hidden="true"></i> Add note</button>'}};
+const screen=document.getElementById('screen');let sheet=null,from=null;
+function rel(el){const a=el.getBoundingClientRect(),b=screen.getBoundingClientRect();return{top:a.top-b.top,left:a.left-b.left,width:a.width,height:a.height}}
+function place(s,r){s.style.top=r.top+'px';s.style.left=r.left+'px';s.style.width=r.width+'px';s.style.height=r.height+'px'}
+document.querySelectorAll('[data-k]').forEach(card=>card.addEventListener('click',()=>{
+if(sheet)return;const d=C[card.dataset.k];from=rel(card);sheet=document.createElement('div');sheet.className='tq-sheet';place(sheet,from);
+sheet.innerHTML='<div class="tq-body" style="padding:16px;height:100%;overflow:auto"><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><button id="back" aria-label="Back to overview" style="padding:4px 8px"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button><div><div style="font-size:16px;font-weight:500">'+d.t+'</div><div style="font-size:12px;color:var(--text-secondary)">'+d.s+'</div></div></div>'+d.b+'</div>';
+screen.appendChild(sheet);sheet.getBoundingClientRect();
+requestAnimationFrame(()=>{place(sheet,{top:0,left:0,width:screen.clientWidth,height:screen.clientHeight});sheet.style.borderRadius='20px';sheet.classList.add('full')});
+sheet.querySelector('#back').addEventListener('click',e=>{e.stopPropagation();sheet.classList.remove('full');place(sheet,from);sheet.style.borderRadius='12px';const s=sheet;setTimeout(()=>{s.remove();sheet=null},400)})}));
+</script>
+</body>
+</html>

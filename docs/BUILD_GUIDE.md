@@ -54,7 +54,7 @@ Build exactly one module, finish this loop, and only then start the next. Never 
 
 1. **Read its section.** Read that module's section in `docs/SPEC.md` and in `PLAN.md` §4, plus `PLAN.md` §2 and §3.
 2. **Plan it back.** Before writing code, send the human a short plan: the files you'll add or change, the schemas, the actions, the pages, and any question the spec doesn't answer. Wait for their OK.
-3. **Build in small steps.** Write the schemas first and add them to `src/schemas.ts`. Then add the actions to `src/actions/`, each starting with `requireMember` or `requireOrganizer`. Then build the pages. Run `npx tsc --noEmit` after each step.
+3. **Build in small steps.** Write the schemas first and add them to `src/schemas.ts`. Then add the actions to `src/actions/`, each starting with `requireMember` or `requireOrganizer`. Then build the pages. Run `npx tsc --noEmit` after each step. Each module's UI is a <Name>Summary and a <Name>Full component as described in docs/LAYOUT.md. Layout and animation live only in TripOverview and ExpandableSection, never inside a module.
 4. **Test what you can.**
    - Write unit tests for any pure logic (date overlap, fit, warnings, gas math).
    - Write a two-user end-to-end spec in `tests/` covering the module's "done when" list. Use the `users` fixture from `deepspace/testing`, as `tests/collab.spec.ts` does.
@@ -94,7 +94,7 @@ Follow docs/BUILD_GUIDE.md, Phase 2. Build only Module N (<name>) from docs/SPEC
 **Module 1 (Core):**
 
 ```text
-Follow docs/BUILD_GUIDE.md, Phase 2. Build only Module 1 (Core) from docs/SPEC.md and PLAN.md §4.1: implement the stubbed actions in src/actions/index.ts and the five pages (landing, my trips, join, settings, trip page with empty tabs). Hide the starter's AI chat. Send me your plan first.
+Follow docs/BUILD_GUIDE.md, Phase 2. Build only Module 1 (Core) from docs/SPEC.md and PLAN.md §4.1: implement the stubbed actions in src/actions/index.ts and the five pages (landing, my trips, join, settings, and the trip page as TripOverview from docs/LAYOUT.md, with no module sections built yet). Hide the starter's AI chat. Send me your plan first.
 ```
 
 **Module 3 (Housing)** needs the integration notes:
@@ -170,7 +170,7 @@ Start this phase on the last day, even if modules are left. A smaller app that w
 - [ ] Run `npm run validate` and `npx deepspace test run all`; both pass.
 - [ ] The human goes through the important path with two accounts on the live link: create a trip, join, set budgets, then every deployed module.
 - [ ] Check that no secrets are in the repo: run `git grep -i -E "api[_-]?key|secret|token"` and review every hit.
-- [ ] Unfinished modules are hidden from the trip page, not shown half-working.
+- [ ] Unfinished modules show only as disabled sections on the trip page (docs/LAYOUT.md), never half-working.
 - [ ] Everything is committed and pushed to GitHub.
 
 **Draft the submission note** as `docs/SUBMISSION.md`, for the human to edit and paste into the portal. Write it from the agent log, not from memory. It covers:
