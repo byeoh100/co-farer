@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Check, Copy, Crown, RefreshCw } from 'lucide-react'
 import { Button, Popover, PopoverContent, PopoverTrigger, useToast } from '@/components/ui'
 import { BUDGET_CATEGORIES } from '../../schemas/trip-schemas'
@@ -85,14 +85,33 @@ function InviteControls({ trip }: { trip: Trip }) {
   const [rotating, setRotating] = useState(false)
   const link = `${window.location.origin}/join/${trip.inviteCode}`
 
+  const linkInput = useRef<HTMLInputElement>(null)
+
+  // Some browsers (notably Safari and Firefox) refuse the async clipboard API
+  // in cases Chrome allows, e.g. right after a popup opens. Fall back to
+  // copying the selected text of the visible link box, which they accept
+  // during a click. Only if both fail do we ask the person to copy by hand.
   const copy = async () => {
+    let ok = false
     try {
       await navigator.clipboard.writeText(link)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch {
-      error('Could not copy', 'Select the link and copy it by hand.')
+      ok = true
+    } catch (e) {
+      console.warn('[invite-link] clipboard API refused, trying fallback:', e instanceof Error ? `${e.name}: ${e.message}` : e)
+      const input = linkInput.current
+      if (input) {
+        input.focus()
+        input.select()
+        try {
+          ok = document.execCommand('copy')
+        } catch {
+          ok = false
+        }
+      }
     }
+    if (!ok) return error('Could not copy', 'The link is selected: copy it by hand.')
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
   }
   const rotate = async () => {
     setRotating(true)
@@ -107,6 +126,7 @@ function InviteControls({ trip }: { trip: Trip }) {
       <p className="mb-1.5 text-xs font-medium text-muted-foreground">Invite link</p>
       <div className="flex items-center gap-2">
         <input
+          ref={linkInput}
           readOnly
           value={link}
           aria-label="Invite link"

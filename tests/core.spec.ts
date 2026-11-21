@@ -194,3 +194,22 @@ test('Core: a saved profile (name + picture) sticks and shows in trips', async (
   await expect(a.page.getByTestId('member-name')).toHaveText(custom)
   await expect(a.page.getByTestId('members-list').locator(`img[src="${pic}"]`)).toHaveCount(1)
 })
+
+test('Core: invite link copies on the first open, even if the clipboard API refuses', async ({ users }) => {
+  const [a] = await users(1)
+  await a.context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await a.page.goto('/trips')
+  await expect(a.page.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
+  const trip = (await action(a.page, 'createTrip', { name: 'Copy check' })) as { data: { tripId: string } }
+  await a.page.goto(`/trip/${trip.data.tripId}`)
+  // Simulate a browser that rejects navigator.clipboard.writeText (seen in a
+  // real browser on the first open of the members panel).
+  await a.page.evaluate(() => {
+    navigator.clipboard.writeText = () => Promise.reject(new DOMException('Document is not focused.', 'NotAllowedError'))
+  })
+  await a.page.getByTestId('members-stack').click({ timeout: 15_000 })
+  const link = await a.page.getByTestId('invite-link').inputValue()
+  await a.page.getByRole('button', { name: 'Copy invite link' }).click()
+  await expect(a.page.getByText('Could not copy')).toHaveCount(0)
+  expect(await a.page.evaluate(() => navigator.clipboard.readText())).toBe(link)
+})
