@@ -1,10 +1,10 @@
-# Trip Quorum: Build Instructions for Claude
+# Co-farer: Build Instructions for Claude
 
-> Copy of the [Build Instructions doc](https://claude.ai/artifact/ECaz71ZWuRuFEYW2kfa7Xw). If this copy and the doc disagree, the doc wins: ask the human to re-export it.
+> Copy of the [Build Instructions doc](https://claude.ai/artifact/ECaz71ZWuRuFEYW2kfa7Xw). If this copy and the doc disagree, the doc wins: ask the human to re-export it. The project was renamed from Trip Quorum to Co-farer on 2026-11-21; the doc may still use the old name, which is not a disagreement.
 
 ## How to use this doc
 
-You are the coding agent building Trip Quorum on DeepSpace, one module at a time, with a human who makes the product calls and does the testing. Follow this doc in order. A copy lives in the repo at `docs/BUILD_GUIDE.md`, so you can read it from there.
+You are the coding agent building Co-farer on DeepSpace, one module at a time, with a human who makes the product calls and does the testing. Follow this doc in order. A copy lives in the repo at `docs/BUILD_GUIDE.md`, so you can read it from there.
 
 **Read these at the start of every session, in this order:**
 
@@ -36,11 +36,11 @@ Setup is done when the empty app is live at its `.app.space` link and the code i
    - npm must be 11.6+. If it's older, ask the human to run `npm install -g npm@latest`.
 2. **Install.** You run `npm install`.
 3. **Sign in (human).** The human runs `npx deepspace auth login` in their own terminal. Never ask for their password or a token. You then run `npx deepspace auth whoami` to confirm the account.
-4. **Check the app name.** The `name` in `wrangler.toml` becomes the web address (`trip-quorum.app.space`). Ask the human whether to keep it before registering, because it's hard to change afterwards.
+4. **Check the app name.** The `name` in `wrangler.toml` becomes the web address (`co-farer.app.space`). Ask the human whether to keep it before registering, because it's hard to change afterwards.
 5. **Register.** You run `npx deepspace app init --json`. It writes the app ID into `wrangler.toml`. Never type or invent an app ID yourself.
 6. **Connect GitHub before the first deploy (human creates the repo).** The first deploy permanently decides where the code lives: GitHub if the folder has a GitHub remote, DeepSpace otherwise.
    - The human has chosen GitHub, because the submission needs a repo link. This overrides the template's `AGENTS.md`, which says not to set up GitHub unless asked.
-   - The human creates an **empty** GitHub repo called `trip-quorum` and gives you its URL.
+   - The human creates an **empty** GitHub repo called `co-farer` and gives you its URL.
    - You run `git remote add origin <url>`, commit, and `git push -u origin main`. The branch is already named `main`.
    - **Never run `npx deepspace push`.** It would make DeepSpace, not GitHub, the code's permanent home.
 7. **Validate.** You run `npm run validate`. All tests should pass; there are 14 at this point. Fix anything that fails before going on.

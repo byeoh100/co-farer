@@ -1,12 +1,12 @@
-# Trip Quorum: build plan
+# Co-farer: build plan
 
 This is the code plan for the
-[Trip Quorum Master Spec](https://claude.ai/artifact/GvLauMNkadF9e9mYWSecsH)
+[Co-farer Master Spec](https://claude.ai/artifact/GvLauMNkadF9e9mYWSecsH)
 (copy in `docs/SPEC.md`). How to work through it is in `docs/BUILD_GUIDE.md`.
 **The spec decides what the app does; this file decides how it's built.** If
 they disagree, the spec wins. Fix this file to match it.
 
-Trip Quorum is a group trip planner where friends decide on dates, where to
+Co-farer is a group trip planner where friends decide on dates, where to
 stay, and how to get there together. Each budget is private unless its owner
 chooses to share it.
 
@@ -53,7 +53,7 @@ the whole spec and ask for the app.
   all written in full. Its tests check that no exact budget leaks out.
 - `src/schemas.test.ts`: pins the access rules and runs the SDK's
   `lintSchemas`.
-- **Status:** `tsc`, `eslint` and 14 unit tests pass (11 for Trip Quorum, 3 from the template). The project isn't
+- **Status:** `tsc`, `eslint` and 14 unit tests pass (11 for Co-farer, 3 from the template). The project isn't
   registered or deployed yet; see §8.
 
 ---
@@ -394,17 +394,17 @@ when you start building it.
 ## 8. Getting it running (on your machine)
 
 ```sh
-cd trip-quorum && npm install
+cd co-farer && npm install
 npx deepspace auth login
 npx deepspace auth whoami          # make sure it's the right account
 npx deepspace app init --json      # mints the app id into wrangler.toml
 # Decide where the code lives ONCE (permanent). For GitHub, add the remote
 # BEFORE the first deploy, and don't run `deepspace push`.
-git remote add origin https://github.com/<you>/trip-quorum.git
+git remote add origin https://github.com/byeoh100/co-farer.git
 git add -A && git commit -m "Register app" && git push -u origin main
 npm run validate                   # type check + unit tests (14 at setup)
 npx deepspace dev start            # local
-npx deepspace deploy               # → trip-quorum.app.space
+npx deepspace deploy               # → co-farer.app.space
 npx deepspace app source           # should say GitHub
 ```
 

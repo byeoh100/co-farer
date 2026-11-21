@@ -1,4 +1,4 @@
-## Trip Quorum: read first
+## Co-farer (formerly Trip Quorum): read first
 
 Before any work on this project, read, in order:
 1. `docs/BUILD_GUIDE.md`: how to work (one module at a time, the per-module loop, rules you never break).

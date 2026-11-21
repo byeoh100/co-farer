@@ -1,5 +1,5 @@
 /**
- * Trip Quorum — Module 1 (Core) schemas.
+ * Co-farer — Module 1 (Core) schemas.
  *
  * Only the Core module's collections live here. Later modules add their own
  * schema files when they are built (see PLAN.md — one module at a time).

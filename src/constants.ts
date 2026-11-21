@@ -1,5 +1,5 @@
 /** App name — replaced by the CLI during scaffolding */
-export const APP_NAME = 'trip-quorum'
+export const APP_NAME = 'co-farer'
 
 /** Immutable app identity — data scope keys to this, so renames never
  *  strand your records.
@@ -20,7 +20,7 @@ export const SCOPE_ID = `app:${APP_ID}`
 /** Roles and display config — imported from SDK (single source of truth) */
 export { ROLES, ROLE_CONFIG, type Role } from 'deepspace'
 
-// ── Trip Quorum limits (PLAN.md §6). Starting points; change freely. ──
+// ── Co-farer limits (PLAN.md §6). Starting points; change freely. ──
 /** AI research calls allowed per trip (housing + activities + food). */
 export const RESEARCH_CALL_CAP = 25
 /** How many options "Suggest" creates, per module. */

@@ -1,8 +1,8 @@
-# Trip Quorum Master Spec
+# Co-farer Master Spec
 
-> Copy of the [Trip Quorum Master Spec](https://claude.ai/artifact/GvLauMNkadF9e9mYWSecsH) doc, for the coding agent. If this copy and the doc disagree, the doc wins: ask the human to re-export it. The two diagrams under "Screens and flow" are only in the doc.
+> Copy of the [Co-farer Master Spec](https://claude.ai/artifact/GvLauMNkadF9e9mYWSecsH) doc, for the coding agent. If this copy and the doc disagree, the doc wins: ask the human to re-export it. The project was renamed from Trip Quorum to Co-farer on 2026-11-21; the doc may still use the old name, which is not a disagreement. The two diagrams under "Screens and flow" are only in the doc.
 
-Trip Quorum is a group trip planner where friends decide together on dates, where to stay, and how to get there, with budgets private unless each person chooses to share. This document combines Spec v1 and all module documents into their current versions and resolves the conflicts between them. Where this document differs from an earlier one, this document wins. The earlier documents stay unchanged as backups.
+Co-farer is a group trip planner where friends decide together on dates, where to stay, and how to get there, with budgets private unless each person chooses to share. This document combines Spec v1 and all module documents into their current versions and resolves the conflicts between them. Where this document differs from an earlier one, this document wins. The earlier documents stay unchanged as backups.
 
 First real test: a spring break trip to Cachuma Lake with 5 to 6 college friends, after beta tests with mock trips of 2 to 3 people. The app itself is general, not specific to camping.
 
