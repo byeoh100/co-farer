@@ -31,18 +31,22 @@ You are the coding agent building Trip Quorum on DeepSpace, one module at a time
 
 Setup is done when the empty app is live at its `.app.space` link and the code is on GitHub. Check where things stand first: run `npx deepspace auth whoami` and `git remote -v`, and look for an app ID in `wrangler.toml`. Skip any step that's already done.
 
-1. **Check tools.** You run `node --version` (needs 22+), `npm --version` (needs 11.6+; if older, ask the human to run `npm install -g npm@latest`) and `git --version`.
+1. **Check tools.** You run `node --version`, `npm --version` and `git --version`.
+   - Node must be 22.15+, 24 or 26. Versions 23 and 25 are refused; 24 (LTS) is the safest.
+   - npm must be 11.6+. If it's older, ask the human to run `npm install -g npm@latest`.
 2. **Install.** You run `npm install`.
 3. **Sign in (human).** The human runs `npx deepspace auth login` in their own terminal. Never ask for their password or a token. You then run `npx deepspace auth whoami` to confirm the account.
 4. **Check the app name.** The `name` in `wrangler.toml` becomes the web address (`trip-quorum.app.space`). Ask the human whether to keep it before registering, because it's hard to change afterwards.
 5. **Register.** You run `npx deepspace app init --json`. It writes the app ID into `wrangler.toml`. Never type or invent an app ID yourself.
-6. **Connect GitHub before the first deploy (human creates the repo).** The first deploy permanently decides where the code lives.
+6. **Connect GitHub before the first deploy (human creates the repo).** The first deploy permanently decides where the code lives: GitHub if the folder has a GitHub remote, DeepSpace otherwise.
+   - The human has chosen GitHub, because the submission needs a repo link. This overrides the template's `AGENTS.md`, which says not to set up GitHub unless asked.
    - The human creates an **empty** GitHub repo called `trip-quorum` and gives you its URL.
-   - You run `git remote add origin <url>`, commit, and `git push -u origin main`.
+   - You run `git remote add origin <url>`, commit, and `git push -u origin main`. The branch is already named `main`.
    - **Never run `npx deepspace push`.** It would make DeepSpace, not GitHub, the code's permanent home.
-7. **Validate.** You run `npm run validate`. Expect 11 passing tests. Fix anything that fails before going on.
-8. **First deploy.** You run `npx deepspace deploy`, then give the human the live link. They open it and confirm sign-in works.
-9. **Check the AI integrations** for later modules. You run `npx deepspace integrations info exa/search` and `npx deepspace integrations info anthropic/chat-completion`, and save the output to `docs/integrations.md`.
+7. **Validate.** You run `npm run validate`. All tests should pass; there are 14 at this point. Fix anything that fails before going on.
+8. **First deploy.** You run `npx deepspace deploy`, then `npx deepspace app source` to confirm the code's home is GitHub. Give the human the live link; they open it and confirm sign-in works.
+9. **Create two test accounts** for the automated two-user tests. Run `npx deepspace test accounts create --email alice@deepspace.test --name "Alice" --password-stdin`, then the same for Bob, with a random password piped in. Without them, `tests/collab.spec.ts` and the two-user tests are skipped.
+10. **Check the AI integrations** for later modules. You run `npx deepspace integrations info exa/search` and `npx deepspace integrations info anthropic/chat-completion`, and save the output to `docs/integrations.md`.
 
 ## Phase 2: The loop for every module
 
@@ -53,8 +57,9 @@ Build exactly one module, finish this loop, and only then start the next. Never 
 3. **Build in small steps.** Write the schemas first and add them to `src/schemas.ts`. Then add the actions to `src/actions/`, each starting with `requireMember` or `requireOrganizer`. Then build the pages. Run `npx tsc --noEmit` after each step.
 4. **Test what you can.**
    - Write unit tests for any pure logic (date overlap, fit, warnings, gas math).
-   - Write a two-user end-to-end spec in `tests/` covering the module's "done when" list.
+   - Write a two-user end-to-end spec in `tests/` covering the module's "done when" list. Use the `users` fixture from `deepspace/testing`, as `tests/collab.spec.ts` does.
    - Run `npm run validate` and `npx deepspace test run all`. Fix failures before going on.
+   - The template's own tests (`tests/smoke.spec.ts`, `tests/collab.spec.ts`) check starter pages. When a module replaces one of those pages, update the test to match and tell the human. Never just delete a failing test.
 5. **Run it locally.** Run `npx deepspace dev start`, then give the human a numbered checklist to try in two browsers: one normal window and one private window, with two accounts. Copy the checklist from that module's "done when" list in `PLAN.md`.
 6. **Fix what they report.** Before changing code, say what you think the cause is and how you'll confirm it. Then fix it and ask them to re-test that item.
 7. **Ship it** once the human confirms the checklist passes:
@@ -137,11 +142,14 @@ Read the full error, say your best guess at the cause and how you'll test it, th
 
 | Symptom | First thing to check |
 | --- | --- |
-| `npm install` crashes | npm is older than 11.6. Ask the human to upgrade it. |
+| `npm install` crashes or warns about engines | Node isn't 22.15+, 24 or 26, or npm is older than 11.6. Ask the human to switch versions. |
 | Tests refuse to run because of the app ID | The app isn't registered yet. Run Phase 1, step 5. Never hand-write an ID. |
+| Two-user tests are skipped | No test accounts on this machine. Run Phase 1, step 9, or `npx deepspace test accounts recover --all`. |
+| A starter test fails after a module replaced a page | Update the test to match the new page, and tell the human. Don't delete it. |
 | A joiner sees an empty trip until they refresh | The known join-refresh issue (`PLAN.md` §2). Remount the `RecordScope` with a new `key` after `joinTrip`. |
 | An action returns `not_a_member` unexpectedly | Check that the user's `team_members` row has the right `teamId` and `status: 'active'`. |
 | The live app errors but local works | Run `npx deepspace logs` and read the worker error. Check secrets with `npx deepspace secrets list`. |
+| `source_managed_by_github` error | Expected once the code lives on GitHub: use ordinary `git` commands, not DeepSpace's push or pull. |
 | An integration call fails | Compare the request with `docs/integrations.md`. Retry once, then report. |
 | The deploy fails | Run `npm run validate` first, then read the deploy output from the top. |
 
