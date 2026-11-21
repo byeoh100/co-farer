@@ -53,8 +53,8 @@ the whole spec and ask for the app.
   all written in full. Its tests check that no exact budget leaks out.
 - `src/schemas.test.ts`: pins the access rules and runs the SDK's
   `lintSchemas`.
-- **Status:** `tsc`, `eslint` and 14 unit tests pass (11 for Co-farer, 3 from the template). The project isn't
-  registered or deployed yet; see §8.
+- **Status:** `tsc`, `eslint` and 14 unit tests pass (11 for Co-farer, 3 from the template). Registered, deployed
+  empty at https://co-farer.app.space, code on GitHub (byeoh100/co-farer); see §8.
 
 ---
 
@@ -421,3 +421,4 @@ is Phase 1 of `docs/BUILD_GUIDE.md`.
 | Day 0 | Scaffolded the app (create-deepspace 0.44.2). Read the SDK source to choose the access model. Found the create-without-membership gap and the `UserId` join-refresh bug. Wrote the first plan. | _fill in_ |
 | Planning | Voice sessions: wrote Spec v1, the five module docs and the priorities list, then merged them into the Master Spec, with conflicts resolved, the screens and flow, edge cases and AI limits. | You made every product decision: per-category budgets, essentials-only total, public food prefs, wait for dates before housing, a sticky-note board, warnings instead of filtering out food places. |
 | Plan update | Rewrote this plan and the code to match the Master Spec. Cut the code back to Core only. Replaced the single private constraints table with private `budgets` plus a `public_budgets` projection, so each category gets its own privacy switch. Added the rounded group price band. Tests: 14 passing (11 new). | _fill in: read §2 and §4.1 before building_ |
+| Setup (2026-11-21) | Phase 1: renamed the project from Trip Quorum to Co-farer in code, config and docs (your call). Registered the app as `co-farer`, added the GitHub remote and pushed, then made the first deploy to https://co-farer.app.space; `app source` confirms the code lives on GitHub. Validate: 14 tests pass. `alice@`/`bob@deepspace.test` were already taken (test emails are global across all developers), so the test accounts are `alice-cofarer@` and `bob-cofarer@deepspace.test`. Saved the Exa and Anthropic request shapes to `docs/integrations.md`; Anthropic printed no output schema. | _fill in: confirm sign-in works on the live link_ |
