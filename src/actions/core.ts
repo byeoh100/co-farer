@@ -8,6 +8,7 @@
  *    and only the public projection (`public_budgets`) is written for others.
  */
 
+import { mintUlid } from 'deepspace/worker'
 import type { ActionHandler, ActionResult, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import { BUDGET_CATEGORIES } from '../schemas/trip-schemas'
@@ -69,14 +70,25 @@ const createTrip: Handler = async ({ userId, params, tools }) => {
   const destination = parseText(params.destination, 'Destination', 200, false)
   if (!destination.ok) return fail(destination.error, 'bad_request')
 
-  const trip = await tools.create('trips', {
-    name: name.value,
-    destination: destination.value,
-    organizerId: userId,
-    inviteCode: generateInviteCode(),
-  })
+  // Row id and `tripId` are the same value; `tripId` is the team field.
+  const newId = `trip_${mintUlid()}`
+  const trip = await tools.create(
+    'trips',
+    {
+      tripId: newId,
+      name: name.value,
+      destination: destination.value,
+      organizerId: userId,
+      inviteCode: generateInviteCode(),
+    },
+    newId,
+  )
   if (!trip.success) return fail('Could not create the trip.', 'create_failed')
   const tripId = trip.data.recordId
+  if (tripId !== newId) {
+    await tools.remove('trips', tripId)
+    return fail('Could not create the trip.', 'create_failed')
+  }
 
   const profile = await myProfile(tools, userId)
   const member = await tools.create('team_members', {

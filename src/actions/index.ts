@@ -1,6 +1,7 @@
 import type { ActionHandler } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import { coreActions } from './core'
+import { datesActions } from './dates'
 
 /**
  * Server actions. Every trip write goes through here (PLAN.md §2).
@@ -11,4 +12,5 @@ import { coreActions } from './core'
  */
 export const actions: Record<string, ActionHandler<Env>> = {
   ...coreActions, // Module 1: Core
+  ...datesActions, // Module 2: Dates
 }

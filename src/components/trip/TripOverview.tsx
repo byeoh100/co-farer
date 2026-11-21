@@ -2,8 +2,9 @@
  * The trip page (docs/LAYOUT.md). Layout lives here and nowhere else: modules
  * only supply a <Name>Summary / <Name>Full pair for their slot.
  *
- * Module 1 ships the frame: header, the date bar slot and four section slots.
- * No module behind them is built yet, so every slot renders disabled:
+ * Module 1 ships the frame: header, the date bar and four section slots.
+ * Module 2 fills the date bar. No section's module is built yet, so every
+ * section renders disabled:
  *   - mobile (< 900px): a grayed card in the 2 × 2 grid;
  *   - desktop (≥ 900px): a thin bar, labeled, with no information;
  *   - clicking shows a notice instead of opening.
@@ -11,13 +12,14 @@
  */
 
 import { Link } from 'react-router-dom'
-import { CalendarDays, Lock, Settings2 } from 'lucide-react'
+import { Settings2 } from 'lucide-react'
 import { useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { ESSENTIAL_CATEGORIES } from '../../schemas/trip-schemas'
 import { summarizeMyBudget } from '../../lib/budget-fit'
 import { useMyBudget, type Member, type Trip } from '../../lib/trip-data'
 import { MembersStack } from './MembersStack'
+import { DatesBar } from '../dates/DatesBar'
 
 type SectionId = 'housing' | 'travel' | 'additional' | 'notes'
 
@@ -63,18 +65,7 @@ export function TripOverview({ trip, members, me }: { trip: Trip; members: Membe
 
       <MyEssentials tripId={trip.id} userId={me.userId} />
 
-      {/* Date bar slot (Module 2 replaces this with <DatesBar />). */}
-      <button
-        type="button"
-        aria-disabled="true"
-        data-testid="dates-bar"
-        onClick={() => info('Dates', NOT_READY)}
-        className="flex w-full items-center gap-2 rounded-xl border border-dashed border-border bg-muted/60 px-4 py-2.5 text-left text-sm text-muted-foreground"
-      >
-        <CalendarDays className="h-4 w-4" aria-hidden />
-        <span className="font-medium">Dates</span>
-        <Lock className="ml-auto h-3.5 w-3.5" aria-hidden />
-      </button>
+      <DatesBar trip={trip} members={members} me={me} />
 
       {!anyAvailable && (
         <div className="rounded-xl border border-border bg-card p-4 text-sm" data-testid="getting-started">

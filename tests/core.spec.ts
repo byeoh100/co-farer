@@ -192,7 +192,14 @@ test('Core: a saved profile (name + picture) sticks and shows in trips', async (
   await a.page.goto(`/trip/${trip.data.tripId}`)
   await a.page.getByTestId('members-stack').click({ timeout: 15_000 })
   await expect(a.page.getByTestId('member-name')).toHaveText(custom)
-  await expect(a.page.getByTestId('members-list').locator(`img[src="${pic}"]`)).toHaveCount(1)
+  // The picture link reached the trip's member row…
+  await expect(a.page.getByTestId('members-list').locator(`[data-image="${pic}"]`)).toHaveCount(1)
+  // …and since that file doesn't exist, the avatar falls back to the letter.
+  await expect(a.page.getByTestId('members-list').locator(`img[src="${pic}"]`)).toHaveCount(0)
+  await expect(a.page.getByTestId('members-list').getByText(custom[0].toUpperCase(), { exact: true })).toBeVisible()
+
+  // Leave the shared test account as it was: real name, no picture.
+  expect(await action(a.page, 'updateMyProfile', { name: a.name || 'Alice', imageUrl: null })).toMatchObject({ success: true })
 })
 
 test('Core: invite link copies on the first open, even if the clipboard API refuses', async ({ users }) => {

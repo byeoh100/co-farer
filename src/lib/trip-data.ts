@@ -15,6 +15,10 @@ export interface Trip {
   destination: string | null
   organizerId: string
   inviteCode: string
+  datesStatus: 'open' | 'locked'
+  /** YYYY-MM-DD; set only while locked. */
+  datesStart: string | null
+  datesEnd: string | null
 }
 
 export interface Member {
@@ -26,7 +30,15 @@ export interface Member {
   imageUrl: string | null
 }
 
-type TripRow = { name: string; destination?: string | null; organizerId: string; inviteCode: string }
+type TripRow = {
+  name: string
+  destination?: string | null
+  organizerId: string
+  inviteCode: string
+  datesStatus?: string | null
+  datesStart?: string | null
+  datesEnd?: string | null
+}
 type MemberRow = {
   teamId: string
   userId: string
@@ -56,6 +68,9 @@ function toTrip(r: { recordId: string; data: TripRow }): Trip {
     destination: r.data.destination ?? null,
     organizerId: r.data.organizerId,
     inviteCode: r.data.inviteCode,
+    datesStatus: r.data.datesStatus === 'locked' && r.data.datesStart && r.data.datesEnd ? 'locked' : 'open',
+    datesStart: r.data.datesStart ?? null,
+    datesEnd: r.data.datesEnd ?? null,
   }
 }
 
@@ -119,4 +134,23 @@ export function usePublicBudgets(tripId: string | undefined) {
     }
     return byUser
   }, [records])
+}
+
+export interface AvailabilityRange {
+  recordId: string
+  userId: string
+  start: string
+  end: string
+}
+
+/** Everyone's date ranges in this trip (Module 2). */
+export function useAvailability(tripId: string | undefined) {
+  const { records, status } = useQuery<{ userId: string; start: string; end: string }>('availability', {
+    where: { tripId: tripId ?? '' },
+  })
+  const ranges = useMemo(
+    () => records.map((r): AvailabilityRange => ({ recordId: r.recordId, userId: r.data.userId, start: r.data.start, end: r.data.end })),
+    [records],
+  )
+  return { ranges, status }
 }

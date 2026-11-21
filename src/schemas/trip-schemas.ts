@@ -23,11 +23,11 @@ import type { CollectionSchema, RolePermissions } from 'deepspace/schema'
 const SIGNED_IN_ROLES = ['viewer', 'member', 'admin'] as const
 
 /** Same rule for every role. Admins are deliberately NOT granted extra reads. */
-function sameForAllRoles(rule: RolePermissions): Record<string, RolePermissions> {
+export function sameForAllRoles(rule: RolePermissions): Record<string, RolePermissions> {
   return Object.fromEntries(SIGNED_IN_ROLES.map((role) => [role, rule]))
 }
 
-const teamReadOnly: RolePermissions = { read: 'team', create: false, update: false, delete: false }
+export const teamReadOnly: RolePermissions = { read: 'team', create: false, update: false, delete: false }
 const ownReadOnly: RolePermissions = { read: 'own', create: false, update: false, delete: false }
 
 /** Budget categories. Essentials (housing, gas) make up the total. */
@@ -37,9 +37,13 @@ export const ESSENTIAL_CATEGORIES: readonly BudgetCategory[] = ['housing', 'gas'
 
 export const tripsSchema: CollectionSchema = {
   name: 'trips',
-  // The trip row's own id is the team id.
-  teamField: '_rowId',
+  // The trip's own id, stored in a real column (createTrip sets the row id
+  // and tripId to the same value). The SDK's `_rowId` team field worked for
+  // reads but not for live updates: other members never received changes to
+  // the trip row (found in Module 2: a locked date didn't reach the joiner).
+  teamField: 'tripId',
   columns: [
+    { name: 'tripId', storage: 'text', interpretation: 'plain', immutable: true },
     { name: 'name', storage: 'text', interpretation: 'plain', required: true, maxLength: 120 },
     { name: 'destination', storage: 'text', interpretation: 'plain', maxLength: 200 },
     { name: 'organizerId', storage: 'text', interpretation: 'plain', required: true, immutable: true },
@@ -49,6 +53,10 @@ export const tripsSchema: CollectionSchema = {
     // AI research calls used by this trip (cap: PLAN.md §6). Shared by
     // housing, activities and food.
     { name: 'researchCallsUsed', storage: 'number', interpretation: 'plain', default: 0 },
+    // Module 2 (Dates). Final dates as YYYY-MM-DD text, set by lockDates.
+    { name: 'datesStatus', storage: 'text', interpretation: { kind: 'select', options: ['open', 'locked'] }, default: 'open' },
+    { name: 'datesStart', storage: 'text', interpretation: 'plain', maxLength: 10 },
+    { name: 'datesEnd', storage: 'text', interpretation: 'plain', maxLength: 10 },
   ],
   permissions: sameForAllRoles(teamReadOnly),
 }

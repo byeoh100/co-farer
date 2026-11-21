@@ -22,6 +22,8 @@ async function deleteAll(tools: ActionTools, collection: string, where: Record<s
 const steps: CleanupStep[] = [
   // Module 1: others stop seeing this person's public budgets.
   (tools, tripId, userId) => deleteAll(tools, 'public_budgets', { tripId, userId }),
+  // Module 2: their availability stops counting (decided with the human).
+  (tools, tripId, userId) => deleteAll(tools, 'availability', { tripId, userId }),
 ]
 
 export async function runLeaveCleanup(tools: ActionTools, tripId: string, userId: string): Promise<void> {
