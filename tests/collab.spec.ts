@@ -78,7 +78,8 @@ test('API status page renders loading success and error states', async ({ users 
       return
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    // Long enough for the loading state to be seen reliably (100 ms was flaky).
+    await new Promise((resolve) => setTimeout(resolve, 1000))
     await route.fulfill({
       status: 200,
       contentType: 'application/json',

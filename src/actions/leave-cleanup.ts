@@ -1,0 +1,29 @@
+/**
+ * What happens to a person's data when they leave a trip (PLAN.md §2).
+ * Each module adds its own step here when it is built.
+ *
+ * Their `team_members` row is kept with status 'left' (by leaveTrip), so
+ * later modules can gray out their notes. Their private `budgets` row is kept
+ * too: only they can read it, and it's back if they rejoin.
+ */
+
+import type { ActionTools } from 'deepspace/worker'
+
+type CleanupStep = (tools: ActionTools, tripId: string, userId: string) => Promise<void>
+
+/** Drain-delete every matching row (deleteWhere removes at most `limit` per call). */
+async function deleteAll(tools: ActionTools, collection: string, where: Record<string, unknown>) {
+  for (let i = 0; i < 50; i++) {
+    const res = await tools.deleteWhere(collection, where, 500)
+    if (!res.success || res.data.deleted < 500) return
+  }
+}
+
+const steps: CleanupStep[] = [
+  // Module 1: others stop seeing this person's public budgets.
+  (tools, tripId, userId) => deleteAll(tools, 'public_budgets', { tripId, userId }),
+]
+
+export async function runLeaveCleanup(tools: ActionTools, tripId: string, userId: string): Promise<void> {
+  for (const step of steps) await step(tools, tripId, userId)
+}

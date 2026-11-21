@@ -151,7 +151,14 @@ when you start building it.
 
 ### 4.1 Core: trips, invites, roles, budgets
 
-- **Data (written):** `trips`, `team_members`, `budgets`, `public_budgets`.
+- **Data (written):** `trips`, `team_members` (plus `displayName` and
+  `imageUrl`, a per-trip copy of the member's profile), `budgets`,
+  `public_budgets`, `profiles` (each person's own name and picture,
+  owner-only). DeepSpace manages `name` and `imageUrl` on `users` from the
+  sign-in identity, so they can't hold a custom profile. On `users`,
+  non-admins get no direct writes, and `roster: 'read-policy'` keeps names
+  and pictures out of the app-wide user list, so they're visible only to
+  tripmates.
 - **Actions:**
   - `createTrip`: creates the trip and the organizer's membership; random
     invite code of 10+ characters.
@@ -161,6 +168,10 @@ when you start building it.
     who left.
   - `leaveTrip`.
   - `rotateInviteCode`: organizer only.
+  - `updateMyProfile`: the one action that isn't about a single trip
+    (approved exception to `requireMember`). Saves your name and picture
+    to `profiles`, then copies them into each of your memberships. Pictures must come from
+    the app's own file storage (`/api/files/...?scope=app`).
   - `setMyBudgets`: upserts your private row and syncs `public_budgets`:
     adds rows for categories switched to public, deletes them when switched
     back.
@@ -175,13 +186,23 @@ when you start building it.
   5. **Trip page** (`/trip/[id]`): `TripOverview`, laid out in
      `docs/LAYOUT.md`, not tabs. It has the header (members as overlapping
      profile-picture circles, your essentials total, a link to settings), a
-     `DatesBar` slot, and four section slots built on one shared
-     `ExpandableSection`, which owns the expand animation, focus handling and
-     `?section=` URL state. A section that can't be used yet shows disabled
-     (grayed card on mobile, thin labeled bar on desktop) and shows a notice
-     when clicked. Each module later fills its slot with a `<Name>Summary`
-     and a `<Name>Full` component.
-- The starter's in-app AI chat isn't in the spec. Hide it in v1. Its tools
+     `DatesBar` slot, and four section slots. A section that can't be used
+     yet shows disabled (grayed card on mobile, thin labeled bar on desktop)
+     and shows a notice when clicked: "This part isn't ready yet", or for
+     Housing before dates lock, "Housing opens once the dates are locked".
+     Each module later fills its slot with a `<Name>Summary` and a
+     `<Name>Full` component. The shared `ExpandableSection` (expand
+     animation, focus handling, `?section=` URL state) is built in Module 3,
+     the first module with a section to expand.
+  6. **Profile** (`/settings`): name and picture. Without a picture, the
+     avatar is the first letter of the first name on a color fixed per person.
+- **Members:** overlapping circles, Google Docs style. Online members are in
+  color and offline ones grayed, from a per-trip presence room
+  (`trip:<tripId>`) that only active members can join
+  (`src/server/realtime-routes.ts`). Clicking the circles opens the members
+  panel: names, public budgets, and for the organizer the invite link.
+- The starter's in-app AI chat isn't in the spec. Hide it in v1: the chat UI
+  is off (no `ai_chats` schema) and `<AgentTools />` is unmounted. Its tools
   would run as the signed-in user, so they couldn't read anyone else's
   budgets anyway.
 - **Done when (two browsers):**
@@ -228,6 +249,9 @@ when you start building it.
   calling `lockDates` is refused.
 
 ### 4.3 Housing (builds the engine)
+
+- Also builds the shared `ExpandableSection` (`docs/LAYOUT.md`), deferred
+  from Module 1.
 
 - **Trip page:** `HousingSummary` (`limit` 1 on mobile, 3 on desktop) and
   `HousingFull`, in the Housing section.
@@ -446,3 +470,4 @@ is Phase 1 of `docs/BUILD_GUIDE.md`.
 | Plan update | Rewrote this plan and the code to match the Master Spec. Cut the code back to Core only. Replaced the single private constraints table with private `budgets` plus a `public_budgets` projection, so each category gets its own privacy switch. Added the rounded group price band. Tests: 14 passing (11 new). | Section 2 and 4.1 relating to data access and core application functions have been read and verified. The application's goals have been laid out correctly. |
 | Setup (2026-11-21) | Phase 1: renamed the project from Trip Quorum to Co-farer in code, config and docs (your call). Registered the app as `co-farer`, added the GitHub remote and pushed, then made the first deploy to https://co-farer.app.space; `app source` confirms the code lives on GitHub. Validate: 14 tests pass. `alice@`/`bob@deepspace.test` were already taken (test emails are global across all developers), so the test accounts are `alice-cofarer@` and `bob-cofarer@deepspace.test`. Saved the Exa and Anthropic request shapes to `docs/integrations.md`; Anthropic printed no output schema. | I could reach the website and sign in with my email successfully. |
 | Layout update (2026-11-21) | Added `docs/LAYOUT.md` and the two mockups. The trip page is now one overview (`TripOverview`) instead of tabs: a header with profile-picture circles, a date bar whose calendar opens as a pop-up (no dimmed screen), and four expanding sections. Activities and Food share "Additional". Unavailable sections stay visible but disabled, which replaces "hidden". Before dates lock, the date bar shows only "Not locked yet"; the overlap hint moves to the best-window stretch. Before estimates exist, the header total reads "Budget $X · no estimates yet". Updated the spec, plan and build guide to match. UI only: no actions, schemas or privacy rules changed. | _fill in_ |
+| Module 1: Core (2026-11-21) | Built the Core actions (`createTrip`, `getInvite`, `joinTrip`, `leaveTrip`, `rotateInviteCode`, `setMyBudgets`, `updateMyProfile`), each guarded by `requireMember`/`requireOrganizer` except `updateMyProfile` (approved exception: it isn't about a single trip, uses only `ctx.userId` and touches only the caller's rows). Pages: landing, My trips, Join, trip settings (budgets, privacy switches, Leave), `TripOverview` with disabled sections, and Profile with a picture-centering pop-up. Members show as Google Docs-style circles, in color when online and gray when not, from a per-trip presence room that only active members can join. Your decisions: one profile shown only to tripmates (`roster: 'read-policy'`, per-trip copy in `team_members`); default avatar is the first initial on a color fixed per person; disabled-section notice says "This part isn't ready yet"; `ExpandableSection` moved to Module 3; on leaving, public budget rows are removed and the private row is kept; add the picture cropper. What broke: (1) the join-refresh bug from §2 is real (the SDK reads `UserId`); the `RecordScope` remount workaround passes the two-user test. (2) Saving a profile failed because DeepSpace manages `name` and `imageUrl` on `users`; moved profiles to an owner-only `profiles` collection and gave non-admins no direct `users` writes. (3) The e2e run hung because Playwright waits on `aria-disabled` buttons; the test now forces the click. (4) The starter's API-status test was flaky (a 100 ms loading state); lengthened it to 1 s. (5) A raw `budgets` read through the browser tool route isn't available in this SDK (404), so that check was dropped; the schema test pins `budgets` as owner-only. Tests: 33 unit, 15 e2e passing. Deployed to https://co-farer.app.space. | _fill in_ |

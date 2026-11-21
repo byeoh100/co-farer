@@ -64,7 +64,11 @@ export const teamMembersSchema: CollectionSchema = {
     // 'left' keeps the row so the notes board can gray out that person's notes.
     { name: 'status', storage: 'text', interpretation: { kind: 'select', options: ['active', 'left'] }, default: 'active' },
     { name: 'tripRole', storage: 'text', interpretation: { kind: 'select', options: ['organizer', 'member'] }, default: 'member' },
+    // Copy of the member's profile (name + picture), written only by
+    // createTrip/joinTrip/updateMyProfile. Lives here, not in `users`, so a
+    // profile is visible only to people in the same trip.
     { name: 'displayName', storage: 'text', interpretation: 'plain', maxLength: 80 },
+    { name: 'imageUrl', storage: 'text', interpretation: 'plain', maxLength: 500 },
     // Has this person finished their settings? (Not what they entered.)
     { name: 'onboarded', storage: 'number', interpretation: { kind: 'boolean' }, default: 0 },
   ],
@@ -111,9 +115,28 @@ export const publicBudgetsSchema: CollectionSchema = {
   permissions: sameForAllRoles(teamReadOnly),
 }
 
+/**
+ * Each person's Co-farer profile (one for all trips). DeepSpace manages the
+ * `users` row's name and picture from the sign-in identity, so a custom
+ * name/picture lives here instead. Owner-only; written by `updateMyProfile`,
+ * which also copies it into the person's `team_members` rows for tripmates.
+ */
+export const profilesSchema: CollectionSchema = {
+  name: 'profiles',
+  ownerField: 'userId',
+  uniqueOn: ['userId'],
+  columns: [
+    { name: 'userId', storage: 'text', interpretation: 'plain', required: true, immutable: true },
+    { name: 'displayName', storage: 'text', interpretation: 'plain', maxLength: 80 },
+    { name: 'imageUrl', storage: 'text', interpretation: 'plain', maxLength: 500 },
+  ],
+  permissions: sameForAllRoles(ownReadOnly),
+}
+
 export const coreSchemas: CollectionSchema[] = [
   tripsSchema,
   teamMembersSchema,
   budgetsSchema,
   publicBudgetsSchema,
+  profilesSchema,
 ]

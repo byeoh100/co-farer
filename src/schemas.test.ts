@@ -29,4 +29,23 @@ describe('schemas', () => {
       }
     }
   })
+
+  it('give non-admins no direct writes to users (so never to their role)', () => {
+    const users = schemas.find((s) => s.name === 'users')!
+    for (const role of ['viewer', 'member']) {
+      expect(users.permissions[role]).toMatchObject({ read: 'own', create: false, update: false, delete: false })
+    }
+  })
+
+  it('keep profiles owner-only and server-written', () => {
+    const profiles = schemas.find((s) => s.name === 'profiles')!
+    for (const p of Object.values(profiles.permissions)) {
+      expect(p).toMatchObject({ read: 'own', create: false, update: false, delete: false })
+    }
+  })
+
+  it('keep names and pictures out of the app-wide user list', () => {
+    // Members see each other only through team_members (per trip).
+    expect(schemas.find((s) => s.name === 'users')!.roster).toBe('read-policy')
+  })
 })

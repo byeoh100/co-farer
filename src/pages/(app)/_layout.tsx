@@ -15,10 +15,11 @@
  * their own layout without inheriting it.
  */
 
-import { Suspense, type ReactNode } from 'react'
+import { Suspense, useCallback, useState, type ReactNode } from 'react'
 import { Outlet } from 'react-router-dom'
 import { DeepSpaceAuthProvider, useAuthStatus } from 'deepspace'
-import { RecordProvider, RecordScope, AgentTools } from 'deepspace'
+import { RecordProvider, RecordScope } from 'deepspace'
+import { ScopeRefreshContext } from '../../lib/scope-refresh'
 import Navigation from '../../components/Navigation'
 import { useToast } from '@/components/ui'
 import { APP_NAME, SCOPE_ID } from '../../constants'
@@ -60,6 +61,9 @@ function AuthBoot({ children }: { children: ReactNode }) {
   // through onWriteError. Route rejections to toasts so they're never a
   // silent no-op. Keep this wiring when customizing the layout.
   const { error, warning } = useToast()
+  // Bumped by useRefreshScope() after joining a trip (src/lib/scope-refresh.ts).
+  const [scopeKey, setScopeKey] = useState(0)
+  const refreshScope = useCallback(() => setScopeKey((k) => k + 1), [])
 
   if (!isLoaded) {
     return <div aria-busy="true" className="fixed inset-0 bg-background" />
@@ -72,10 +76,12 @@ function AuthBoot({ children }: { children: ReactNode }) {
         e.kind === 'permission' ? warning(e.title, e.detail) : error(e.title, e.detail)
       }
     >
-      <RecordScope roomId={SCOPE_ID} schemas={schemas}>
-        <AgentTools />
-        {children}
-      </RecordScope>
+      {/* No <AgentTools />: the starter's in-app AI isn't in the spec (PLAN.md §4.1). */}
+      <ScopeRefreshContext.Provider value={refreshScope}>
+        <RecordScope key={scopeKey} roomId={SCOPE_ID} schemas={schemas}>
+          {children}
+        </RecordScope>
+      </ScopeRefreshContext.Provider>
     </RecordProvider>
   )
 }

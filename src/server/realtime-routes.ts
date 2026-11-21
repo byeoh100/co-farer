@@ -120,6 +120,32 @@ async function resolveDocsYjsRole(
   return null
 }
 
+/** Same rule as requireMember (src/actions/trip-access.ts), for WebSocket routes. */
+async function isActiveTripMember(env: Env, tripId: string, userId: string): Promise<boolean> {
+  if (!tripId) return false
+  const stub = env.RECORD_ROOMS.get(env.RECORD_ROOMS.idFromName(`app:${env.DEEPSPACE_APP_ID}`))
+  try {
+    const res = await stub.fetch(
+      new Request('https://internal/api/tools/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-User-Id': userId, 'X-App-Action': 'true' },
+        body: JSON.stringify({
+          tool: 'records.query',
+          params: { collection: 'team_members', where: { teamId: tripId, userId }, limit: 1 },
+        }),
+      }),
+    )
+    const json = (await res.json()) as {
+      success?: boolean
+      data?: { records?: Array<{ data?: { status?: string } }> }
+    }
+    const row = json.success ? json.data?.records?.[0] : undefined
+    return !!row && (row.data?.status ?? 'active') === 'active'
+  } catch {
+    return false
+  }
+}
+
 export function registerRealtimeRoutes(app: Hono<AppContext>): void {
   app.get(
     '/ws/:roomId',
@@ -150,6 +176,19 @@ export function registerRealtimeRoutes(app: Hono<AppContext>): void {
     ),
   )
 
+  // Co-farer: a trip's presence room (`trip:<tripId>`) shows who is online
+  // and their names, so only active members of that trip may join it.
+  app.get('/ws/presence/:scopeId', async (c, next) => {
+    const scopeId = c.req.param('scopeId')
+    if (!scopeId.startsWith('trip:')) return next()
+    const token = new URL(c.req.url).searchParams.get('token')
+    const auth = token ? (await verifyJwt(jwtConfig(c.env), token)).result : null
+    if (!auth) return new Response('Unauthorized', { status: 401 })
+    if (!(await isActiveTripMember(c.env, scopeId.slice('trip:'.length), auth.userId))) {
+      return new Response('Forbidden', { status: 403 })
+    }
+    return next()
+  })
   app.get(
     '/ws/presence/:scopeId',
     wsRoute((env) => env.PRESENCE_ROOMS),

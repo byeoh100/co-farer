@@ -18,6 +18,11 @@
 
 export const THEMES = [
   {
+    id: 'cofarer',
+    label: 'Co-farer',
+    description: 'Warm light theme from the layout mockups.',
+  },
+  {
     id: 'slate',
     label: 'Slate',
     description: 'Neutral dark placeholder default. Replace with your own theme.',
