@@ -86,7 +86,8 @@ async function search(tools: ActionTools, plan: SearchPlan): Promise<SearchResul
 async function askModel(tools: ActionTools, system: string, userPrompt: string): Promise<string | null> {
   const res = await tools.integration('anthropic/chat-completion', {
     model: RESEARCH_MODEL,
-    // Thinking is always on for this model and counts toward max_tokens.
+    // Thinking is on by default for this model and counts toward max_tokens.
+    // (DeepSpace's integration takes no effort setting: model, max_tokens, system, messages.)
     max_tokens: 16000,
     system,
     messages: [{ role: 'user', content: userPrompt }],

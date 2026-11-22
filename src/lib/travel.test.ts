@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { buildBoard, claimsThatFit, parsePickupNote, parseTravelInput, type TravelEntry } from './travel'
 
 const entry = (userId: string, over: Partial<TravelEntry> = {}): TravelEntry => ({
-  userId, mode: 'undecided', seats: null, startPoint: null, otherKind: null, details: null, fromDate: null, toDate: null, ...over,
+  userId, mode: 'undecided', seats: null, mpg: null, startPoint: null, otherKind: null, details: null, fromDate: null, toDate: null, ...over,
 })
 
 describe('parseTravelInput', () => {
   it('accepts driving with 1–12 passenger seats and an optional start', () => {
     expect(parseTravelInput({ mode: 'driving', seats: '3', startPoint: '  Isla  Vista ' })).toEqual({
-      ok: true, value: { mode: 'driving', seats: 3, startPoint: 'Isla Vista' },
+      ok: true, value: { mode: 'driving', seats: 3, startPoint: 'Isla Vista', mpg: null },
     })
     for (const seats of [0, 13, 2.5, 'x', null]) expect(parseTravelInput({ mode: 'driving', seats }).ok).toBe(false)
   })
@@ -67,7 +67,7 @@ describe('buildBoard', () => {
 
   it('groups cars by start point, the meeting point first', () => {
     expect(board.groups.map((g) => g.startPoint)).toEqual([null, 'LA'])
-    expect(board.groups[0].cars).toEqual([{ driverId: 'd1', seats: 2, riders: ['r1'], full: false }])
+    expect(board.groups[0].cars).toEqual([{ driverId: 'd1', seats: 2, riders: ['r1'], full: false, mpg: null }])
     expect(board.groups[1].cars[0]).toMatchObject({ driverId: 'd2', full: true })
   })
   it('counts seats left, lists other ways, and treats seatless riders as not decided', () => {
@@ -76,5 +76,24 @@ describe('buildBoard', () => {
     expect(board.others.map((e) => e.userId)).toEqual(['f1'])
     // u1 has no row; orphan's driver left the trip.
     expect(board.undecided).toEqual(['u1', 'orphan'])
+  })
+})
+
+describe('gas (stretch)', () => {
+  it('splits a round trip across everyone in the car, the driver included', async () => {
+    const { gasPerPerson } = await import('./travel')
+    // 2 × 150 mi ÷ 30 mpg × $5 ÷ 2 people = $25
+    expect(gasPerPerson(150, 30, 5, 2)).toBe(25)
+    // Defaults: 25 mpg, $4.75 → 2 × 100 ÷ 25 × 4.75 ÷ 1 = $38
+    expect(gasPerPerson(100, null, null, 1)).toBe(38)
+    expect(gasPerPerson(null, 30, 5, 2)).toBeNull()
+  })
+  it('checks the organizer’s miles and price, and the driver’s mpg', async () => {
+    const { parseTripGas } = await import('./travel')
+    expect(parseTripGas({ miles: '150', gasPrice: '4.89' })).toEqual({ ok: true, miles: 150, price: 4.89 })
+    expect(parseTripGas({ miles: '', gasPrice: '' })).toEqual({ ok: true, miles: null, price: null })
+    for (const bad of [{ miles: 0 }, { miles: 5001 }, { miles: 1.5 }, { gasPrice: 0.5 }, { gasPrice: 4.999 }]) expect(parseTripGas(bad).ok).toBe(false)
+    expect(parseTravelInput({ mode: 'driving', seats: 2, mpg: '32' })).toMatchObject({ ok: true, value: { mpg: 32 } })
+    expect(parseTravelInput({ mode: 'driving', seats: 2, mpg: 2 }).ok).toBe(false)
   })
 })

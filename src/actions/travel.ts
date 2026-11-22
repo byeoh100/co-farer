@@ -8,8 +8,8 @@
 
 import type { ActionHandler, ActionResult, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
-import { claimsThatFit, parsePickupNote, parseTravelInput } from '../lib/travel'
-import { requireMember } from './trip-access'
+import { claimsThatFit, parsePickupNote, parseTravelInput, parseTripGas } from '../lib/travel'
+import { requireMember, requireOrganizer } from './trip-access'
 
 type Handler = ActionHandler<Env>
 type Row<T> = T & Record<string, unknown>
@@ -30,7 +30,7 @@ interface ClaimRow {
 const fail = (error: string, code: string): ActionResult => ({ success: false, error, code })
 const ok = <T>(data: T): ActionResult<T> => ({ success: true, data })
 
-const EMPTY = { seats: null, startPoint: null, otherKind: null, details: null, fromDate: null, toDate: null }
+const EMPTY = { seats: null, mpg: null, startPoint: null, otherKind: null, details: null, fromDate: null, toDate: null }
 
 async function findTravel(tools: ActionTools, tripId: string, userId: string) {
   const res = await tools.query<Row<TravelRow>>('travel', { where: { tripId, userId }, limit: 1 })
@@ -196,8 +196,19 @@ const getCarPickups: Handler = async ({ userId, params, tools }) => {
   return ok({ notes })
 }
 
+/** Stretch (gas): the organizer sets the one-way miles and the gas price (null = the default). */
+const setTripGas: Handler = async ({ userId, params, tools }) => {
+  const check = await requireOrganizer(tools, params.tripId, userId)
+  if (!check.ok) return fail(check.error, check.code)
+  const input = parseTripGas(params)
+  if (!input.ok) return fail(input.error, 'bad_request')
+  const res = await tools.update('trips', check.membership.tripId, { tripMiles: input.miles, gasPrice: input.price })
+  if (!res.success) return fail('Could not save the gas settings.', 'save_failed')
+  return ok({ saved: true })
+}
+
 export const travelActions: Record<string, Handler> = {
-  setMyTravel, claimSeat, releaseSeat, setPickupNote, getCarPickups,
+  setMyTravel, claimSeat, releaseSeat, setPickupNote, getCarPickups, setTripGas,
 }
 
 /** Leave cleanup: your seat and note go; if you drove, your riders are released; your travel row goes. */

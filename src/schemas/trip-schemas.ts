@@ -48,6 +48,9 @@ export const tripsSchema: CollectionSchema = {
     { name: 'destination', storage: 'text', interpretation: 'plain', maxLength: 200 },
     // Module 4: where cars leave from unless a driver sets their own start.
     { name: 'defaultMeetingPoint', storage: 'text', interpretation: 'plain', maxLength: 120 },
+    // Stretch (gas): one-way miles and $/gallon, set by the organizer. Null price = the default.
+    { name: 'tripMiles', storage: 'number', interpretation: 'plain' },
+    { name: 'gasPrice', storage: 'number', interpretation: { kind: 'currency', symbol: '$', decimals: 2 } },
     { name: 'organizerId', storage: 'text', interpretation: 'plain', required: true, immutable: true },
     // Random, unguessable join code. Rotatable by the organizer.
     { name: 'inviteCode', storage: 'text', interpretation: 'plain', required: true },

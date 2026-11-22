@@ -166,3 +166,41 @@ export function monthLabel(month: string): string {
   const [y, m] = month.split('-').map(Number)
   return `${LONG_MONTHS[m - 1]} ${y}`
 }
+
+export interface BestWindow extends DateRange {
+  /** People free on every day of the window. */
+  freeAll: number
+  /** Person-days free in the window (the tie-breaker). */
+  personDays: number
+}
+
+/**
+ * The best-window helper (spec §2, stretch): the top `top` stretches of
+ * `nights` nights (nights + 1 days), ranked by how many people are free on
+ * every day, then by person-days, then earliest. Windows don't overlap, start
+ * no earlier than `today`, and need at least one person free throughout.
+ */
+export function bestWindows(byDay: Map<string, Set<string>>, nights: number, today: string, top = 3): BestWindow[] {
+  if (!Number.isInteger(nights) || nights < 0 || byDay.size === 0) return []
+  const days = [...byDay.keys()].sort()
+  const first = days[0] > today ? days[0] : today
+  const last = days[days.length - 1]
+  const candidates: BestWindow[] = []
+  for (let start = first; ; start = addDays(start, 1)) {
+    const end = addDays(start, nights)
+    if (end > last) break
+    const span = { start, end }
+    const freeAll = freeForWholeSpan(byDay, span).size
+    if (freeAll === 0) continue
+    const personDays = eachDay(span).reduce((n, d) => n + (byDay.get(d)?.size ?? 0), 0)
+    candidates.push({ start, end, freeAll, personDays })
+  }
+  candidates.sort((a, b) => b.freeAll - a.freeAll || b.personDays - a.personDays || a.start.localeCompare(b.start))
+  const picked: BestWindow[] = []
+  for (const c of candidates) {
+    if (picked.some((p) => c.start <= p.end && p.start <= c.end)) continue
+    picked.push(c)
+    if (picked.length === top) break
+  }
+  return picked
+}

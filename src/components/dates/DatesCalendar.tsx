@@ -5,15 +5,18 @@
  *  - Tap a start day, then an end day, to select a range; tap a day to see who's free.
  *  - "My dates" mode adds your availability; the organizer's "Final dates"
  *    mode picks and locks the trip dates. While locked, it's read-only.
+ *  - Stretch: in "Final dates", the organizer can tick "Help me find the
+ *    best window", enter a trip length, and the top stretches are marked;
+ *    tapping one selects it, ready to lock.
  */
 
 import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Lock, Trash2, Unlock } from 'lucide-react'
-import { Button, useToast } from '@/components/ui'
+import { Button, Checkbox, Input, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { callAction } from '../../lib/actions-client'
 import {
-  MAX_RANGE_DAYS, formatRange, freeByDay, localToday, monthGrid, monthLabel, rangeLength, shiftMonth, type DateRange,
+  MAX_RANGE_DAYS, bestWindows, formatRange, freeByDay, localToday, monthGrid, monthLabel, rangeLength, shiftMonth, type DateRange,
 } from '../../lib/dates'
 import type { AvailabilityRange, Member, Trip } from '../../lib/trip-data'
 import { MemberAvatar } from '../trip/MemberAvatar'
@@ -48,6 +51,8 @@ export function DatesCalendar({
   const [selection, setSelection] = useState<DateRange | null>(null)
   const [focusDay, setFocusDay] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [helper, setHelper] = useState(false)
+  const [nightsInput, setNightsInput] = useState('2')
 
   const activeIds = useMemo(() => members.map((m) => m.userId), [members])
   const byDay = useMemo(() => freeByDay(ranges, activeIds), [ranges, activeIds])
@@ -56,6 +61,16 @@ export function DatesCalendar({
   const responded = useMemo(() => new Set(ranges.map((r) => r.userId).filter((u) => names.has(u))), [ranges, names])
   const myRanges = ranges.filter((r) => r.userId === me.userId).sort((a, b) => a.start.localeCompare(b.start))
   const total = members.length
+
+  // Best-window helper (organizer, final dates mode, unlocked).
+  const nights = Number(nightsInput)
+  const nightsValid = Number.isInteger(nights) && nights >= 1 && nights < MAX_RANGE_DAYS
+  const showHelper = !locked && isOrganizer && mode === 'final'
+  const windows = useMemo(
+    () => (showHelper && helper && nightsValid ? bestWindows(byDay, nights, today) : []),
+    [showHelper, helper, nightsValid, byDay, nights, today],
+  )
+  const bestRank = (d: string) => windows.findIndex((w) => d >= w.start && d <= w.end)
 
   const tap = (day: string) => {
     setFocusDay(day)
@@ -157,12 +172,14 @@ export function DatesCalendar({
           const shown = freeIds.slice(0, MAX_DAY_AVATARS)
           const extra = free - shown.length
           const past = day < today
+          const rank = bestRank(day)
           return (
             <button
               key={day}
               type="button"
               data-testid={`day-${day}`}
               data-free={free}
+              data-best={rank >= 0 ? rank + 1 : undefined}
               onClick={() => tap(day)}
               aria-pressed={inSel(day)}
               aria-label={`${formatRange({ start: day, end: day })}: ${free} of ${total} free${free ? ` (${freeIds.map((m) => m.displayName).join(', ')})` : ''}${inLocked(day) ? ', locked trip date' : ''}`}
@@ -170,11 +187,18 @@ export function DatesCalendar({
                 'relative flex h-14 flex-col items-center justify-start gap-1 rounded-md bg-muted/50 pt-1 text-xs transition-colors hover:bg-muted',
                 past && 'text-muted-foreground/60 opacity-70',
                 inLocked(day) && 'bg-accent ring-2 ring-primary ring-inset',
+                rank === 0 && 'bg-primary/15 ring-2 ring-primary/70 ring-inset',
+                rank > 0 && 'bg-primary/5 ring-1 ring-primary/40 ring-inset',
                 inSel(day) && 'outline-2 outline-offset-[-2px] outline-foreground',
                 focusDay === day && 'font-semibold',
               )}
             >
               <span>{Number(day.slice(8))}</span>
+              {rank >= 0 && (
+                <span className="absolute right-0.5 top-0.5 rounded-full bg-primary px-1 text-[8px] font-semibold leading-3 text-primary-foreground" aria-hidden>
+                  {rank + 1}
+                </span>
+              )}
               {free > 0 && (
                 <span className="flex items-center -space-x-1.5" aria-hidden>
                   {shown.map((m) => (
@@ -202,6 +226,59 @@ export function DatesCalendar({
       <p className="mt-2 text-[11px] text-muted-foreground">
         Circles show who’s free each day{locked ? '. Outlined = locked dates.' : '. Tap a start day, then an end day.'}
       </p>
+
+      {showHelper && (
+        <div className="mt-3 rounded-lg border border-border p-3 text-sm" data-testid="best-window">
+          <label className="flex items-center gap-2">
+            <Checkbox checked={helper} onCheckedChange={(on) => setHelper(!!on)} data-testid="best-window-toggle" />
+            Help me find the best window
+          </label>
+          {helper && (
+            <div className="mt-2 space-y-2">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                Trip length
+                <Input
+                  className="h-8 w-14 px-2 text-center"
+                  inputMode="numeric"
+                  value={nightsInput}
+                  onChange={(e) => setNightsInput(e.target.value.replace(/[^\d]/g, '').slice(0, 2))}
+                  aria-label="Trip length in nights"
+                  aria-invalid={!nightsValid}
+                  data-testid="best-window-nights"
+                />
+                {nights === 1 ? 'night' : 'nights'} ({nightsValid ? nights + 1 : '?'} days)
+              </label>
+              {windows.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {nightsValid ? 'No stretch that long has anyone free every day yet.' : `Enter 1 to ${MAX_RANGE_DAYS - 1} nights.`}
+                </p>
+              ) : (
+                <ol className="space-y-1">
+                  {windows.map((w, i) => (
+                    <li key={w.start}>
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm hover:bg-muted"
+                        onClick={() => {
+                          setSelection({ start: w.start, end: w.end })
+                          setAnchor(null)
+                          setMonth(w.start.slice(0, 7))
+                        }}
+                        data-testid="best-window-option"
+                      >
+                        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground">{i + 1}</span>
+                        <span className="font-medium">{formatRange(w)}</span>
+                        <span className="text-xs text-muted-foreground">· {w.freeAll} of {total} free every day</span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              )}
+              <p className="text-[11px] text-muted-foreground">Tap one to select it, then lock.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {focusDay && (
         <div className="mt-3 rounded-lg bg-muted/60 px-3 py-2 text-xs" data-testid="day-detail">

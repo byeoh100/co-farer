@@ -9,7 +9,7 @@ import { useQuery } from 'deepspace'
 import type { BudgetCategory } from '../schemas/trip-schemas'
 import type { EngineModule } from '../schemas/engine-schemas'
 import { OTHER_KINDS, TRAVEL_MODES, type OtherKind, type TravelMode } from '../schemas/travel-schemas'
-import type { TravelEntry } from './travel'
+import { buildBoard, gasPerPerson, type TravelEntry } from './travel'
 import { readDietary, type DietaryTag } from './food'
 import { callAction } from './actions-client'
 import type { CategoryFit } from './budget-fit'
@@ -21,6 +21,9 @@ export interface Trip {
   destination: string | null
   /** Module 4: where cars leave from by default. */
   meetingPoint: string | null
+  /** Stretch (gas): one-way miles, and $/gallon (null = the default). */
+  tripMiles: number | null
+  gasPrice: number | null
   organizerId: string
   inviteCode: string
   datesStatus: 'open' | 'locked'
@@ -43,6 +46,8 @@ type TripRow = {
   name: string
   destination?: string | null
   defaultMeetingPoint?: string | null
+  tripMiles?: number | null
+  gasPrice?: number | null
   organizerId: string
   inviteCode: string
   datesStatus?: string | null
@@ -78,6 +83,8 @@ function toTrip(r: { recordId: string; data: TripRow }): Trip {
     name: r.data.name,
     destination: r.data.destination ?? null,
     meetingPoint: r.data.defaultMeetingPoint || null,
+    tripMiles: typeof r.data.tripMiles === 'number' ? r.data.tripMiles : null,
+    gasPrice: typeof r.data.gasPrice === 'number' ? r.data.gasPrice : null,
     organizerId: r.data.organizerId,
     inviteCode: r.data.inviteCode,
     datesStatus: r.data.datesStatus === 'locked' && r.data.datesStart && r.data.datesEnd ? 'locked' : 'open',
@@ -301,6 +308,7 @@ export function useTravel(tripId: string | undefined): TravelEntry[] {
           userId: String(d.userId ?? ''),
           mode: (TRAVEL_MODES as readonly unknown[]).includes(d.mode) ? (d.mode as TravelMode) : 'undecided',
           seats: typeof d.seats === 'number' ? d.seats : null,
+          mpg: typeof d.mpg === 'number' ? d.mpg : null,
           startPoint: str(d.startPoint),
           otherKind: (OTHER_KINDS as readonly unknown[]).includes(d.otherKind) ? (d.otherKind as OtherKind) : null,
           details: str(d.details),
@@ -398,4 +406,18 @@ export function useFoodPrefs(tripId: string | undefined): FoodPrefs[] {
     () => records.map((r) => ({ userId: r.data.userId, dietary: readDietary(r.data.dietary), likes: r.data.likes || null, avoids: r.data.avoids || null })),
     [records],
   )
+}
+
+// ── Stretch: gas ────────────────────────────────────────────────────────
+
+/** Your gas share, from the car you drive or ride in (null if none, or no miles yet). */
+export function useMyGasEstimate(trip: Trip | null, userId: string, members: Member[]): number | null {
+  const entries = useTravel(trip?.id)
+  const claims = useSeatClaims(trip?.id)
+  return useMemo(() => {
+    if (!trip || trip.tripMiles == null) return null
+    const board = buildBoard(members.map((m) => m.userId), entries, claims)
+    const car = board.groups.flatMap((g) => g.cars).find((c) => c.driverId === userId || c.riders.includes(userId))
+    return car ? gasPerPerson(trip.tripMiles, car.mpg, trip.gasPrice, 1 + car.riders.length) : null
+  }, [trip, userId, members, entries, claims])
 }

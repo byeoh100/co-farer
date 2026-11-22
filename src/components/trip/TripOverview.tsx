@@ -17,7 +17,7 @@ import { useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { ESSENTIAL_CATEGORIES } from '../../schemas/trip-schemas'
 import { summarizeMyBudget } from '../../lib/budget-fit'
-import { useHousingEstimate, useMyBudget, type Member, type Trip } from '../../lib/trip-data'
+import { useHousingEstimate, useMyBudget, useMyGasEstimate, type Member, type Trip } from '../../lib/trip-data'
 import { MembersStack } from './MembersStack'
 import { DatesBar } from '../dates/DatesBar'
 import { HousingFull } from '../housing/HousingFull'
@@ -112,7 +112,7 @@ export function TripOverview({ trip, members, me }: { trip: Trip; members: Membe
       {/* The stage: a section expands over this area on desktop. */}
       <div ref={stageRef} className="flex flex-1 flex-col gap-3">
       <SectionStageContext.Provider value={stageRef}>
-      <MyEssentials tripId={trip.id} userId={me.userId} />
+      <MyEssentials trip={trip} members={members} userId={me.userId} />
 
       <DatesBar trip={trip} members={members} me={me} />
 
@@ -176,11 +176,13 @@ function DisabledSection({ section, onClick }: { section: SectionSlot; onClick: 
 }
 
 /** Your essentials total (housing + gas). Only you see this; it's never sent to anyone. */
-function MyEssentials({ tripId, userId }: { tripId: string; userId: string }) {
+function MyEssentials({ trip, members, userId }: { trip: Trip; members: Member[]; userId: string }) {
+  const tripId = trip.id
   const { budget } = useMyBudget(tripId, userId)
-  // Locked housing's price per person is the housing estimate; gas comes with the stretch.
+  // Locked housing's price per person is the housing estimate; gas is your share of your car's gas.
   const housing = useHousingEstimate(tripId)
-  const summary = summarizeMyBudget(budget ?? {}, { housing }, ESSENTIAL_CATEGORIES)
+  const gas = useMyGasEstimate(trip, userId, members)
+  const summary = summarizeMyBudget(budget ?? {}, { housing, gas }, ESSENTIAL_CATEGORIES)
   const hasBudget = summary.lines.some((l) => l.budget != null)
   const hasEstimate = summary.lines.some((l) => l.estimate != null)
 

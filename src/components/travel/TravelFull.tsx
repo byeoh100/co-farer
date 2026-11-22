@@ -5,13 +5,16 @@
  */
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Car as CarIcon, MapPin, Plane, UserMinus } from 'lucide-react'
+import { Car as CarIcon, Fuel, MapPin, Plane, UserMinus } from 'lucide-react'
 import { Button, ConfirmModal, Input, Label, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { OTHER_KINDS, type OtherKind } from '../../schemas/travel-schemas'
 import { callAction } from '../../lib/actions-client'
 import { formatRange } from '../../lib/dates'
-import { MAX_DETAILS, MAX_PICKUP_NOTE, MAX_SEATS, MAX_START_POINT, OTHER_KIND_LABELS, buildBoard, type Car, type TravelEntry } from '../../lib/travel'
+import {
+  DEFAULT_GAS_PRICE, DEFAULT_MPG, MAX_DETAILS, MAX_PICKUP_NOTE, MAX_SEATS, MAX_START_POINT, MAX_TRIP_MILES, OTHER_KIND_LABELS,
+  buildBoard, gasPerPerson, type Car, type TravelEntry,
+} from '../../lib/travel'
 import { useCarPickups, useMyPickupNote, useSeatClaims, useTravel, type Member, type Trip } from '../../lib/trip-data'
 import { MemberAvatar } from '../trip/MemberAvatar'
 
@@ -70,6 +73,8 @@ export function TravelFull({ trip, members, me }: { trip: Trip; members: Member[
         )}
       </p>
 
+      <GasSettings trip={trip} isOrganizer={me.tripRole === 'organizer'} busy={busy} run={run} />
+
       <MyTravel
         trip={trip}
         me={me}
@@ -91,6 +96,7 @@ export function TravelFull({ trip, members, me }: { trip: Trip; members: Member[
                 <CarCard
                   key={car.driverId}
                   car={car}
+                  gasEach={gasPerPerson(trip.tripMiles, car.mpg, trip.gasPrice, 1 + car.riders.length)}
                   meId={me.userId}
                   names={names}
                   myMode={mine?.mode ?? 'undecided'}
@@ -167,6 +173,7 @@ function MyTravel({
   const [choice, setChoice] = useState<Choice>(saved)
   useEffect(() => setChoice(saved), [saved])
   const [seats, setSeats] = useState(String(mine?.seats ?? 3))
+  const [mpg, setMpg] = useState(mine?.mpg?.toString() ?? '')
   const [startPoint, setStartPoint] = useState(mine?.startPoint ?? '')
   const [kind, setKind] = useState<OtherKind>(mine?.otherKind ?? 'flight')
   const [details, setDetails] = useState(mine?.details ?? '')
@@ -176,7 +183,7 @@ function MyTravel({
 
   const save = (e: FormEvent) => {
     e.preventDefault()
-    if (choice === 'driving') void run('travel', 'setMyTravel', { mode: 'driving', seats: Number(seats), startPoint }, 'Travel saved')
+    if (choice === 'driving') void run('travel', 'setMyTravel', { mode: 'driving', seats: Number(seats), startPoint, mpg }, 'Travel saved')
     else if (choice === 'other') void run('travel', 'setMyTravel', { mode: 'other', otherKind: kind, details, fromDate, toDate }, 'Travel saved')
     else if (choice === 'undecided') void run('travel', 'setMyTravel', { mode: 'undecided' }, 'Travel saved')
   }
@@ -219,7 +226,7 @@ function MyTravel({
       ) : (
         <form onSubmit={save} className="mt-3 space-y-3">
           {choice === 'driving' && (
-            <div className="grid gap-3 sm:grid-cols-[8rem_1fr]">
+            <div className="grid gap-3 sm:grid-cols-[8rem_1fr_7rem]">
               <div className="space-y-1.5">
                 <Label htmlFor="travel-seats">Passenger seats</Label>
                 <Input
@@ -242,6 +249,18 @@ function MyTravel({
                   data-testid="travel-start"
                 />
                 <p className="text-[11px] text-muted-foreground">Leave empty to leave from the meeting point.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="travel-mpg">Miles per gallon</Label>
+                <Input
+                  id="travel-mpg"
+                  inputMode="numeric"
+                  placeholder={String(DEFAULT_MPG)}
+                  value={mpg}
+                  onChange={(e) => setMpg(e.target.value.replace(/[^\d]/g, '').slice(0, 3))}
+                  data-testid="travel-mpg"
+                />
+                <p className="text-[11px] text-muted-foreground">For gas (default {DEFAULT_MPG})</p>
               </div>
             </div>
           )}
@@ -345,9 +364,10 @@ function RidingDetails({
 }
 
 function CarCard({
-  car, meId, names, myMode, inThisCar, pickups, busy, onClaim, onRemoveRider,
+  car, gasEach, meId, names, myMode, inThisCar, pickups, busy, onClaim, onRemoveRider,
 }: {
   car: Car
+  gasEach: number | null
   meId: string
   names: Map<string, Member>
   myMode: string
@@ -395,6 +415,14 @@ function CarCard({
           <span key={i} className="h-6 w-6 rounded-full border border-dashed border-muted-foreground/60" aria-hidden />
         ))}
       </div>
+
+      {gasEach != null && (
+        <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground" data-testid="car-gas">
+          <Fuel className="h-3.5 w-3.5" aria-hidden />
+          Gas ≈ ${gasEach} each ({1 + car.riders.length} {car.riders.length === 0 ? 'person' : 'people'}, round trip
+          {car.mpg ? `, ${car.mpg} mpg` : `, ${DEFAULT_MPG} mpg assumed`})
+        </p>
+      )}
 
       {inThisCar && car.riders.length > 0 && (
         <ul className="mt-3 space-y-1.5 border-t border-border pt-2 text-sm" data-testid="pickups">
@@ -445,3 +473,87 @@ function OtherRow({ entry, member }: { entry: TravelEntry; member: Member | unde
   )
 }
 
+
+/** Stretch (gas): the trip's one-way miles and gas price. Everyone sees them; the organizer edits. */
+function GasSettings({
+  trip, isOrganizer, busy, run,
+}: {
+  trip: Trip
+  isOrganizer: boolean
+  busy: string | null
+  run: (key: string, name: string, params: Record<string, unknown>, done?: string) => Promise<boolean>
+}) {
+  const [editing, setEditing] = useState(false)
+  const [miles, setMiles] = useState(trip.tripMiles?.toString() ?? '')
+  const [price, setPrice] = useState(trip.gasPrice?.toFixed(2) ?? '')
+  const priceText = `$${(trip.gasPrice ?? DEFAULT_GAS_PRICE).toFixed(2)}/gal${trip.gasPrice == null ? ' (default)' : ''}`
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-3 text-sm" aria-label="Gas" data-testid="gas-settings">
+      {!editing ? (
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <Fuel className="h-4 w-4 text-muted-foreground" aria-hidden />
+          {trip.tripMiles != null ? (
+            <span data-testid="gas-summary">
+              <span className="font-medium">{trip.tripMiles} miles</span> each way · {priceText}
+            </span>
+          ) : (
+            <span className="text-muted-foreground" data-testid="gas-summary">
+              {isOrganizer ? 'Add the trip distance to estimate gas.' : 'Gas estimates appear once the organizer adds the distance.'}
+            </span>
+          )}
+          {isOrganizer && (
+            <button
+              className="text-primary hover:underline"
+              onClick={() => {
+                setMiles(trip.tripMiles?.toString() ?? '')
+                setPrice(trip.gasPrice?.toFixed(2) ?? '')
+                setEditing(true)
+              }}
+              data-testid="edit-gas"
+            >
+              {trip.tripMiles != null ? 'Change' : 'Add distance'}
+            </button>
+          )}
+        </p>
+      ) : (
+        <form
+          className="flex flex-wrap items-end gap-3"
+          onSubmit={async (e) => {
+            e.preventDefault()
+            if (await run('gas', 'setTripGas', { miles, gasPrice: price }, 'Gas settings saved')) setEditing(false)
+          }}
+        >
+          <div className="space-y-1.5">
+            <Label htmlFor="gas-miles">One-way miles</Label>
+            <Input
+              id="gas-miles"
+              className="w-28"
+              inputMode="numeric"
+              value={miles}
+              onChange={(e) => setMiles(e.target.value.replace(/[^\d]/g, '').slice(0, String(MAX_TRIP_MILES).length))}
+              data-testid="gas-miles"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="gas-price">Gas $/gallon</Label>
+            <Input
+              id="gas-price"
+              className="w-28"
+              inputMode="decimal"
+              placeholder={DEFAULT_GAS_PRICE.toFixed(2)}
+              value={price}
+              onChange={(e) => setPrice(e.target.value.replace(/[^\d.]/g, '').slice(0, 5))}
+              data-testid="gas-price"
+            />
+          </div>
+          <Button type="submit" size="sm" loading={busy === 'gas'} disabled={!!busy} data-testid="save-gas">Save</Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+          <p className="w-full text-[11px] text-muted-foreground">
+            Each person’s share: 2 × miles ÷ mpg × gas price ÷ people in the car (the driver counts).
+          </p>
+        </form>
+      )}
+    </section>
+  )
+}

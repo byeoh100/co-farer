@@ -254,6 +254,11 @@ when you start building it.
   - Stretch: a "Help me find the best window" checkbox. The organizer enters a
     trip length, and `bestWindows(counts, nights)` highlights the top
     stretches.
+  - Built (stretch): in the organizer's "Final dates" mode. Trip length is
+    in nights (a window is nights + 1 days). The top 3 non-overlapping
+    windows are ranked by people free every day, then person-days, then
+    earliest; past days are skipped. Tapping one selects it, ready to lock.
+    Computed in the browser from availability; nothing is stored.
 - **Edge cases:**
   - Before unlocking, the app warns that housing will have to be researched
     again.
@@ -315,7 +320,10 @@ when you start building it.
   - The cap message shows at 25 calls (set it to 2 temporarily to test).
 
 - **Decided with the human (Module 3):**
-  - Research model: Claude Opus 5.5 (`RESEARCH_MODEL` in `src/lib/limits.ts`).
+  - Research model: Claude Opus 5.5 at first; switched to Claude Haiku 5.5
+    (`RESEARCH_MODEL` in `src/lib/limits.ts`) when the human asked for a
+    cheaper model after the stretch goals. Haiku costs about 1/40 per token
+    and is billed at standard pricing on DeepSpace's free tier.
   - No real AI calls during development until the human says so; the reply
     reader accepts likely formats and logs only the reply's keys if unknown.
   - Automated tests use a local AI stand-in (test accounts on a local server
@@ -414,6 +422,12 @@ when you start building it.
     optional from/to dates and a details line. ("Flying" in the plan's data
     list is `mode: 'other'` with `otherKind: 'flight'`.)
   - Gas estimates wait until the end, with the other stretch goals.
+  - Gas (stretch, built after all modules): the organizer enters one-way
+    miles and the gas price in the Travel section (default $4.75/gal);
+    drivers can add their mpg (default 25). Each person in a car, the driver
+    included, gets `2 × miles ÷ mpg × price ÷ people`, shown on the car and
+    used as their gas estimate (settings page and essentials header).
+    Flyers and others have no gas estimate.
 
 ### 4.5 Notes
 
@@ -591,3 +605,4 @@ is Phase 1 of `docs/BUILD_GUIDE.md`.
 | Module 4: Transportation (2026-11-21) | Built `travel`, `seat_claims` and `pickup_notes` plus the trip's meeting point; the actions `setMyTravel`, `claimSeat`, `releaseSeat`, `setPickupNote` and `getCarPickups`, each guarded by `requireMember`. `src/lib/travel.ts` holds the pure logic (input checks, who keeps a seat in a race, the board layout; 7 unit tests). The Travel section is usable right away: pick driving (passenger seats, optional start point), riding (tap a car), another way (flight, train, bus, drop-off or other, with from/to dates and details) or not decided. The carpool board groups cars by starting point and shows filled and empty seats and "Full"; flyers and others are listed with their details. Server rules: the last-seat race keeps the earlier claim, seats can't go below the riders, switching away from driving or leaving releases the riders. Your decisions: organizer sets the meeting point; seats exclude the driver; the driver can remove riders and riders can leave; a pickup note seen only by that car (owner-only rows, read through an action that checks the caller is in the car); Travel open before the dates lock; the "another way" dropdown with dates; gas waits for the end. The Core test now checks the disabled-section notice on Notes, since Travel is open. Nothing broke this time. Tests: 89 unit, 22 e2e passing. Deployed. | Decided the meeting point is set by the organizer, seats don't count the driver, and drivers can remove riders while riders can remove themselves. Asked for a pickup note on each seat so the driver can see addresses easily. Asked for a dropdown for things that aren't cars (flight, train, drop-off) with from/to dates. Decided to leave gas estimates for later. Tested the carpool board and approved shipping. |
 | Module 5: Notes (2026-11-21) | Built `notes` and the actions `addNote`, `editNote` and `deleteNote` (your own notes only, guarded by `requireMember`) and `removeNote` (organizer only, any note). `src/lib/notes.ts` checks the text (trimmed, line breaks kept, 280 characters). The Notes section is a live board of sticky notes, newest first, each with the author's circle, name, time and "edited"; you edit or delete your own, and the organizer removes any after a confirm. Notes from people who left stay, grayed out and marked "has left". The overview card shows the count and the latest note (mobile) or the latest 3 (desktop). Your decisions: 280 characters, newest first, 200 notes per trip, open right away. The Core test now checks the disabled-section notice on Additional, since Notes is open. Nothing broke. Tests: 92 unit, 23 e2e passing. Deployed. | Agreed to the suggested note length, order, limit, and having Notes open right away. Tested the notes board and approved shipping. |
 | Modules 6–7: Additional (Activities and Food) (2026-11-21) | Built both lists on the shared engine in one Additional section: Activities and Food side by side on desktop, stacked on mobile, each with Suggest 10, Search for more, paste a link or name, live votes ranked by votes, remove (adder or organizer), the "New" outline and photos; never locked, no deadline. Added `food_prefs` (team-read) and `setMyFoodPrefs`, with a Food preferences section on My settings (dietary chips, cuisines liked and avoided). Research generalized: per-list search plans and prompts (`src/lib/research-additional.ts`), per-person prices (0 = free), and an `accommodates` list for food read only from known tags. The warning triangle (`src/lib/food.ts`, pure, unit-tested) lists every need a place isn't confirmed to accommodate; places stay on the list. Your decisions: build Activities and Food together as one module; open right away; typed prices per person; TripAdvisor, AllTrails and Viator first for activities, TripAdvisor and Yelp for food, then the places' own websites; unknown dietary info counts as "may not suit"; unlocking the dates leaves these lists alone. Leaving removes your food preferences. The Core test no longer checks a "not ready" section (none are left). Nothing broke. Tests: 105 unit, 24 e2e passing. Deployed. | Asked for Activities and Food to be built as one "Additional" module, kept as separate lists. Picked the specific sites to search first, per-person prices, and the warning when a place's dietary info is unknown. Decided the lists open right away and stay when the dates are unlocked. Tested the Additional section and approved shipping. |
+| Stretch: gas, best window, cheaper model (2026-11-21) | Gas: the organizer sets one-way miles and the gas price (default $4.75/gal) in Travel with `setTripGas`; drivers add mpg (default 25). Each car shows the per-person share (`2 × miles ÷ mpg × price ÷ people`, driver included), which becomes that person's gas estimate on My settings and in the essentials header, flagged when over their gas budget. Best window: `bestWindows` in `src/lib/dates.ts` ranks non-overlapping stretches of N nights by people free every day, then person-days; the organizer's Final dates mode marks the top 3 on the calendar and tapping one selects it to lock. Model: research switched from Claude Opus 5.5 to Claude Haiku 5.5 (about 1/40 the token price, standard pricing on DeepSpace's free tier). What broke: a gas price like $4.89 was refused by a floating-point "to the cent" check; the unit test caught it. Tests: 109 unit, 26 e2e passing. Deployed. | Asked for gas estimates and the best-window helper, then for a cheaper AI model. Tested and approved deploying. |

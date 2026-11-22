@@ -13,7 +13,7 @@ import { BUDGET_CATEGORIES, type BudgetCategory } from '../../../../../schemas/t
 import { summarizeMyBudget } from '../../../../../lib/budget-fit'
 import { MAX_BUDGET } from '../../../../../lib/core-input'
 import { callAction } from '../../../../../lib/actions-client'
-import { useFoodPrefs, useHousingEstimate, useMyBudget } from '../../../../../lib/trip-data'
+import { useFoodPrefs, useHousingEstimate, useMyBudget, useMyGasEstimate } from '../../../../../lib/trip-data'
 import { DIETARY_LABELS, DIETARY_TAGS, MAX_CUISINE_TEXT, type DietaryTag } from '../../../../../lib/food'
 import { useTripContext } from '../../../../../lib/trip-context'
 
@@ -27,13 +27,15 @@ const LABELS: Record<BudgetCategory, { title: string; hint: string }> = {
 type Draft = Record<BudgetCategory, string> & { publicCategories: BudgetCategory[] }
 
 export default function TripSettingsPage() {
-  const { trip, me } = useTripContext()
+  const { trip, me, members } = useTripContext()
   const [params] = useSearchParams()
   const welcome = params.get('welcome') === '1'
   const navigate = useNavigate()
   const { success, error } = useToast()
   const { budget, status } = useMyBudget(trip.id, me.userId)
   const housingEstimate = useHousingEstimate(trip.id)
+  // Stretch (gas): your share of your car's gas, once the organizer sets the miles.
+  const gasEstimate = useMyGasEstimate(trip, me.userId, members)
 
   const [draft, setDraft] = useState<Draft | null>(null)
   const [saving, setSaving] = useState(false)
@@ -63,8 +65,8 @@ export default function TripSettingsPage() {
     const n = asNumbers[c]
     return n != null && (!Number.isInteger(n) || n < 0 || n > MAX_BUDGET)
   })
-  // Locked housing's price per person is the housing estimate; gas comes with the stretch.
-  const summary = summarizeMyBudget(asNumbers, { housing: housingEstimate }, BUDGET_CATEGORIES)
+  // Locked housing's price per person is the housing estimate; gas is your share of your car's gas.
+  const summary = summarizeMyBudget(asNumbers, { housing: housingEstimate, gas: gasEstimate }, BUDGET_CATEGORIES)
 
   const save = async () => {
     setSaving(true)

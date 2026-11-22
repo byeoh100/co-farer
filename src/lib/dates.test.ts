@@ -111,3 +111,28 @@ describe('month grid', async () => {
     expect(monthLabel('2027-03')).toBe('March 2027')
   })
 })
+
+describe('bestWindows (stretch)', () => {
+  // A: 10–14, B: 12–16, C: 13–13 (March 2027).
+  const ranges = [
+    { userId: 'a', start: '2027-03-10', end: '2027-03-14' },
+    { userId: 'b', start: '2027-03-12', end: '2027-03-16' },
+    { userId: 'c', start: '2027-03-13', end: '2027-03-13' },
+  ]
+  it('ranks by people free every day, then person-days, without overlaps', async () => {
+    const { bestWindows, freeByDay } = await import('./dates')
+    const byDay = freeByDay(ranges, ['a', 'b', 'c'])
+    const w = bestWindows(byDay, 2, '2027-03-01')
+    // 12–14: A and B free throughout (+ C on the 13th) beats everything else.
+    expect(w[0]).toEqual({ start: '2027-03-12', end: '2027-03-14', freeAll: 2, personDays: 7 })
+    expect(w.every((x, i) => w.slice(i + 1).every((y) => y.start > x.end || y.end < x.start))).toBe(true)
+    expect(w.length).toBeLessThanOrEqual(3)
+  })
+  it('skips the past and windows nobody can make, and handles no data', async () => {
+    const { bestWindows, freeByDay } = await import('./dates')
+    const byDay = freeByDay(ranges, ['a', 'b', 'c'])
+    expect(bestWindows(byDay, 2, '2027-03-14')).toEqual([{ start: '2027-03-14', end: '2027-03-16', freeAll: 1, personDays: 4 }])
+    expect(bestWindows(byDay, 10, '2027-03-01')).toEqual([])
+    expect(bestWindows(new Map(), 2, '2027-03-01')).toEqual([])
+  })
+})

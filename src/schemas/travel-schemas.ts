@@ -37,6 +37,8 @@ export const travelSchema: CollectionSchema = {
     { name: 'startPoint', storage: 'text', interpretation: 'plain', maxLength: 120 },
     // Drivers: passenger seats, not counting the driver.
     { name: 'seats', storage: 'number', interpretation: 'plain' },
+    // Drivers (stretch: gas): the car's miles per gallon. Null = the default.
+    { name: 'mpg', storage: 'number', interpretation: 'plain' },
     // "Another way": flight, train, bus, drop-off or other, with details and dates.
     { name: 'otherKind', storage: 'text', interpretation: { kind: 'select', options: [...OTHER_KINDS] } },
     { name: 'details', storage: 'text', interpretation: 'plain', maxLength: 300 },
