@@ -4,10 +4,13 @@
  * gets); writes never happen here, only through callAction.
  */
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from 'deepspace'
 import type { BudgetCategory } from '../schemas/trip-schemas'
 import type { EngineModule } from '../schemas/engine-schemas'
+import { OTHER_KINDS, TRAVEL_MODES, type OtherKind, type TravelMode } from '../schemas/travel-schemas'
+import type { TravelEntry } from './travel'
+import { callAction } from './actions-client'
 import type { CategoryFit } from './budget-fit'
 import { readPublicCategories } from './core-input'
 
@@ -15,6 +18,8 @@ export interface Trip {
   id: string
   name: string
   destination: string | null
+  /** Module 4: where cars leave from by default. */
+  meetingPoint: string | null
   organizerId: string
   inviteCode: string
   datesStatus: 'open' | 'locked'
@@ -36,6 +41,7 @@ export interface Member {
 type TripRow = {
   name: string
   destination?: string | null
+  defaultMeetingPoint?: string | null
   organizerId: string
   inviteCode: string
   datesStatus?: string | null
@@ -70,6 +76,7 @@ function toTrip(r: { recordId: string; data: TripRow }): Trip {
     id: r.recordId,
     name: r.data.name,
     destination: r.data.destination ?? null,
+    meetingPoint: r.data.defaultMeetingPoint || null,
     organizerId: r.data.organizerId,
     inviteCode: r.data.inviteCode,
     datesStatus: r.data.datesStatus === 'locked' && r.data.datesStart && r.data.datesEnd ? 'locked' : 'open',
@@ -275,4 +282,72 @@ export function useHousingEstimate(tripId: string | undefined): number | null {
   const { options } = useOptions(tripId, 'housing')
   if (!board || board.status !== 'locked' || !board.winningOptionId) return null
   return options.find((o) => o.id === board.winningOptionId)?.price ?? null
+}
+
+// ── Module 4: Transportation ────────────────────────────────────────────
+
+export function useTravel(tripId: string | undefined): TravelEntry[] {
+  const { records } = useQuery<Record<string, unknown>>('travel', { where: { tripId: tripId ?? '' } })
+  return useMemo(
+    () =>
+      records.map((r): TravelEntry => {
+        const d = r.data
+        const str = (v: unknown) => (typeof v === 'string' && v ? v : null)
+        return {
+          userId: String(d.userId ?? ''),
+          mode: (TRAVEL_MODES as readonly unknown[]).includes(d.mode) ? (d.mode as TravelMode) : 'undecided',
+          seats: typeof d.seats === 'number' ? d.seats : null,
+          startPoint: str(d.startPoint),
+          otherKind: (OTHER_KINDS as readonly unknown[]).includes(d.otherKind) ? (d.otherKind as OtherKind) : null,
+          details: str(d.details),
+          fromDate: str(d.fromDate),
+          toDate: str(d.toDate),
+        }
+      }),
+    [records],
+  )
+}
+
+export interface SeatClaim {
+  driverUserId: string
+  riderUserId: string
+  pickupVersion: number
+}
+
+export function useSeatClaims(tripId: string | undefined): SeatClaim[] {
+  const { records } = useQuery<{ driverUserId: string; riderUserId: string; pickupVersion?: number }>('seat_claims', {
+    where: { tripId: tripId ?? '' },
+  })
+  return useMemo(
+    () => records.map((r) => ({ driverUserId: r.data.driverUserId, riderUserId: r.data.riderUserId, pickupVersion: r.data.pickupVersion ?? 0 })),
+    [records],
+  )
+}
+
+/** Your own pickup note (owner-only row). */
+export function useMyPickupNote(tripId: string | undefined, userId: string): string {
+  const { records } = useQuery<{ note?: string }>('pickup_notes', { where: { tripId: tripId ?? '', userId } })
+  return records[0]?.data.note ?? ''
+}
+
+/**
+ * A car's pickup notes, for its driver and riders only (the server checks).
+ * `key` changes whenever the car's riders or notes change, so this refetches.
+ */
+export function useCarPickups(tripId: string, driverUserId: string | null, key: string): Map<string, string> {
+  const [notes, setNotes] = useState<Map<string, string>>(new Map())
+  useEffect(() => {
+    if (!driverUserId) {
+      setNotes(new Map())
+      return
+    }
+    let cancelled = false
+    void callAction<{ notes: Array<{ riderUserId: string; note: string }> }>('getCarPickups', { tripId, driverUserId }).then((res) => {
+      if (!cancelled) setNotes(new Map(res.success ? res.data.notes.map((n) => [n.riderUserId, n.note]) : []))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [tripId, driverUserId, key])
+  return notes
 }

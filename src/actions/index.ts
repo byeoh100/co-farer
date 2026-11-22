@@ -3,6 +3,7 @@ import type { Env } from '../../worker'
 import { coreActions } from './core'
 import { datesActions } from './dates'
 import { engineActions } from './engine'
+import { travelActions } from './travel'
 import { testCleanupActions } from './test-cleanup'
 
 /**
@@ -16,5 +17,6 @@ export const actions: Record<string, ActionHandler<Env>> = {
   ...coreActions, // Module 1: Core
   ...datesActions, // Module 2: Dates
   ...engineActions, // Module 3: Housing (the shared engine)
+  ...travelActions, // Module 4: Transportation
   ...testCleanupActions, // local test accounts only (refused everywhere else)
 }

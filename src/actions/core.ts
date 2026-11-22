@@ -164,7 +164,7 @@ const leaveTrip: Handler = async ({ userId, params, tools }) => {
   return ok({ left: true })
 }
 
-/** Organizer edits the trip's name and destination (both required). */
+/** Organizer edits the trip's name and destination (both required), and the meeting point (optional). */
 const updateTrip: Handler = async ({ userId, params, tools }) => {
   const check = await requireOrganizer(tools, params.tripId, userId)
   if (!check.ok) return fail(check.error, check.code)
@@ -172,7 +172,14 @@ const updateTrip: Handler = async ({ userId, params, tools }) => {
   if (!name.ok) return fail(name.error, 'bad_request')
   const destination = parseText(params.destination, 'Destination', 200)
   if (!destination.ok) return fail(destination.error, 'bad_request')
-  const res = await tools.update('trips', check.membership.tripId, { name: name.value, destination: destination.value })
+  // Optional: the meeting point (Module 4). Empty clears it.
+  const fields: Record<string, unknown> = { name: name.value, destination: destination.value }
+  if (params.meetingPoint !== undefined) {
+    const mp = typeof params.meetingPoint === 'string' ? params.meetingPoint.replace(/\s+/g, ' ').trim() : ''
+    if (mp.length > 120) return fail('The meeting point can be at most 120 characters.', 'bad_request')
+    fields.defaultMeetingPoint = mp || null
+  }
+  const res = await tools.update('trips', check.membership.tripId, fields)
   if (!res.success) return fail('Could not save the trip.', 'save_failed')
   return ok({ saved: true })
 }

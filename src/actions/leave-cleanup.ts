@@ -8,6 +8,7 @@
  */
 
 import type { ActionTools } from 'deepspace/worker'
+import { cleanupTravelOnLeave } from './travel'
 
 type CleanupStep = (tools: ActionTools, tripId: string, userId: string) => Promise<void>
 
@@ -26,6 +27,8 @@ const steps: CleanupStep[] = [
   (tools, tripId, userId) => deleteAll(tools, 'availability', { tripId, userId }),
   // Module 3: their votes are removed (spec: edge cases).
   (tools, tripId, userId) => deleteAll(tools, 'votes', { tripId, userId }),
+  // Module 4: their seat claim and travel go; if they drove, their riders are released.
+  cleanupTravelOnLeave,
 ]
 
 export async function runLeaveCleanup(tools: ActionTools, tripId: string, userId: string): Promise<void> {

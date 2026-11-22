@@ -184,7 +184,9 @@ export default function TripSettingsPage() {
         )}
       </div>
 
-      {me.tripRole === 'organizer' && <TripDetails tripId={trip.id} name={trip.name} destination={trip.destination ?? ''} />}
+      {me.tripRole === 'organizer' && (
+        <TripDetails tripId={trip.id} name={trip.name} destination={trip.destination ?? ''} meetingPoint={trip.meetingPoint ?? ''} />
+      )}
 
       {me.tripRole !== 'organizer' && (
         <section className="mt-10 border-t border-border pt-6">
@@ -211,17 +213,18 @@ export default function TripSettingsPage() {
   )
 }
 
-/** Organizer only: the trip's name and destination (both required). */
-function TripDetails({ tripId, name, destination }: { tripId: string; name: string; destination: string }) {
+/** Organizer only: the trip's name and destination (both required), and the meeting point. */
+function TripDetails({ tripId, name, destination, meetingPoint }: { tripId: string; name: string; destination: string; meetingPoint: string }) {
   const { success, error } = useToast()
   const [draftName, setDraftName] = useState(name)
   const [draftDest, setDraftDest] = useState(destination)
+  const [draftMeet, setDraftMeet] = useState(meetingPoint)
   const [saving, setSaving] = useState(false)
-  const changed = draftName.trim() !== name || draftDest.trim() !== destination
+  const changed = draftName.trim() !== name || draftDest.trim() !== destination || draftMeet.trim() !== meetingPoint
 
   const save = async () => {
     setSaving(true)
-    const res = await callAction('updateTrip', { tripId, name: draftName, destination: draftDest })
+    const res = await callAction('updateTrip', { tripId, name: draftName, destination: draftDest, meetingPoint: draftMeet })
     setSaving(false)
     if (res.success) success('Trip details saved')
     else error('Could not save', res.error)
@@ -230,7 +233,7 @@ function TripDetails({ tripId, name, destination }: { tripId: string; name: stri
   return (
     <section className="mt-10 border-t border-border pt-6" data-testid="trip-details">
       <h2 className="text-sm font-medium">Trip details</h2>
-      <p className="mt-1 text-xs text-muted-foreground">Only the organizer can change these. Housing research uses the destination.</p>
+      <p className="mt-1 text-xs text-muted-foreground">Only the organizer can change these. Housing research uses the destination; cars leave from the meeting point unless a driver sets their own.</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="trip-name-edit">Trip name</Label>
@@ -239,6 +242,17 @@ function TripDetails({ tripId, name, destination }: { tripId: string; name: stri
         <div className="space-y-1.5">
           <Label htmlFor="trip-destination-edit">Destination</Label>
           <Input id="trip-destination-edit" maxLength={200} value={draftDest} onChange={(e) => setDraftDest(e.target.value)} />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label htmlFor="trip-meeting-edit">Meeting point (optional)</Label>
+          <Input
+            id="trip-meeting-edit"
+            maxLength={120}
+            placeholder="e.g. Campus, Lot 22"
+            value={draftMeet}
+            onChange={(e) => setDraftMeet(e.target.value)}
+            data-testid="meeting-point-input"
+          />
         </div>
       </div>
       <Button size="sm" className="mt-3" onClick={save} loading={saving} disabled={!changed || !draftName.trim() || !draftDest.trim()} data-testid="save-trip-details">

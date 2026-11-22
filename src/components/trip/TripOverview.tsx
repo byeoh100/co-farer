@@ -22,6 +22,8 @@ import { MembersStack } from './MembersStack'
 import { DatesBar } from '../dates/DatesBar'
 import { HousingFull } from '../housing/HousingFull'
 import { HousingSummary } from '../housing/HousingSummary'
+import { TravelFull } from '../travel/TravelFull'
+import { TravelSummary } from '../travel/TravelSummary'
 import { ExpandableSection, SectionStageContext } from './ExpandableSection'
 
 type SectionId = 'housing' | 'travel' | 'additional' | 'notes'
@@ -50,7 +52,15 @@ function sectionsFor(trip: Trip, members: Member[], me: Member): SectionSlot[] {
       summary: <HousingSummary tripId={trip.id} members={members} />,
       full: <HousingFull trip={trip} members={members} me={me} />,
     },
-    { id: 'travel', label: 'Travel', notice: NOT_READY, available: false },
+    {
+      // Usable right away: cars can be sorted out before the dates lock.
+      id: 'travel',
+      label: 'Travel',
+      notice: NOT_READY,
+      available: true,
+      summary: <TravelSummary tripId={trip.id} members={members} />,
+      full: <TravelFull trip={trip} members={members} me={me} />,
+    },
     { id: 'additional', label: 'Additional', notice: NOT_READY, available: false },
     { id: 'notes', label: 'Notes', notice: NOT_READY, available: false },
   ]
