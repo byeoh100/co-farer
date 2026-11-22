@@ -1,17 +1,20 @@
 /**
- * Additional's compact card body (docs/LAYOUT.md). Mobile: the top activity.
- * Desktop: the top items of each list, with food warning triangles.
+ * Additional's compact card body (docs/LAYOUT.md; Planned Changes Spec,
+ * Change 2): the top 3 activities and top 3 places to eat as thumbnails,
+ * each labeled with its name. Food places that may not suit someone keep
+ * their warning triangle on the thumbnail. Inside the section's button, so
+ * spans only.
  */
 
-import { AlertTriangle, ThumbsUp } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { rankOptions, useOptions, useVotes, type Member } from '../../lib/trip-data'
+import { AlertTriangle } from 'lucide-react'
+import { rankOptions, useOptions, useVotes, type EngineOption, type Member } from '../../lib/trip-data'
+import { Thumb } from '../trip/Thumb'
 import { useFoodWarnings } from './RankedList'
 
 export function AdditionalSummary({ tripId, members }: { tripId: string; members: Member[] }) {
   const votes = useVotes(tripId)
-  const activities = rankOptions(useOptions(tripId, 'activities').options, votes)
-  const food = rankOptions(useOptions(tripId, 'food').options, votes)
+  const activities = rankOptions(useOptions(tripId, 'activities').options, votes).slice(0, 3)
+  const food = rankOptions(useOptions(tripId, 'food').options, votes).slice(0, 3)
   const warningFor = useFoodWarnings(tripId, members)
 
   if (activities.length === 0 && food.length === 0) {
@@ -22,31 +25,37 @@ export function AdditionalSummary({ tripId, members }: { tripId: string; members
     )
   }
 
-  const row = (title: string, count: number, warn: boolean, key: string, desktopOnly: boolean) => (
-    <span key={key} className={cn('flex items-center justify-between gap-2 text-sm', desktopOnly && 'hidden min-[900px]:flex')}>
-      <span className="flex min-w-0 items-center gap-1">
-        {warn && <AlertTriangle className="h-3 w-3 shrink-0 text-warning" aria-label="May not suit everyone" />}
-        <span className="truncate">{title}</span>
-      </span>
-      <span className="flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground">
-        <ThumbsUp className="h-3 w-3" aria-hidden />
-        {count}
-      </span>
+  const row = (label: string, items: Array<{ option: EngineOption }>, warn: boolean, testId: string) => (
+    <span className="block space-y-1" data-testid={testId}>
+      <span className="block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
+      {items.length === 0 ? (
+        <span className="block text-xs text-muted-foreground">None yet</span>
+      ) : (
+        <span className="grid grid-cols-3 gap-1.5">
+          {items.map(({ option }) => {
+            const warning = warn ? warningFor(option) : null
+            return (
+              <span key={option.id} className="block min-w-0" data-testid="summary-tile">
+                <Thumb src={option.imageUrl} name={option.title} className="aspect-square w-full rounded-md">
+                  {warning && (
+                    <span className="absolute right-0.5 top-0.5 rounded-full bg-card/90 p-0.5" title={warning.text} data-testid="tile-warning">
+                      <AlertTriangle className="h-3 w-3 text-warning" aria-label={warning.text} />
+                    </span>
+                  )}
+                </Thumb>
+                <span className="mt-0.5 block truncate text-[11px]">{option.title}</span>
+              </span>
+            )
+          })}
+        </span>
+      )}
     </span>
   )
 
   return (
     <span className="block space-y-2" data-testid="additional-summary">
-      <span className="block space-y-1">
-        <span className="block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Activities</span>
-        {activities.length === 0 && <span className="block text-xs text-muted-foreground">None yet</span>}
-        {activities.slice(0, 3).map(({ option, voters }, i) => row(option.title, voters.length, false, option.id, i > 0))}
-      </span>
-      <span className="hidden space-y-1 min-[900px]:block">
-        <span className="block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Food</span>
-        {food.length === 0 && <span className="block text-xs text-muted-foreground">None yet</span>}
-        {food.slice(0, 3).map(({ option, voters }) => row(option.title, voters.length, !!warningFor(option), option.id, false))}
-      </span>
+      {row('Activities', activities, false, 'summary-activities')}
+      {row('Food', food, true, 'summary-food')}
     </span>
   )
 }

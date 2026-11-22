@@ -129,6 +129,12 @@ test('Additional: activities suggest, paste, rank; food prefs, warnings, prices,
   // The overview card shows the top activity and food with the triangle.
   await a.goto(`/trip/${tripId}`)
   await expect(a.getByTestId('additional-summary')).toContainText('Test activity 4', { timeout: 15_000 })
+  // Thumbnails: top 3 of each, labeled; the food place that may not suit someone keeps its triangle.
+  await expect(a.getByTestId('summary-activities').getByTestId('summary-tile')).toHaveCount(3)
+  await expect(a.getByTestId('summary-food').getByTestId('summary-tile')).toHaveCount(3)
+  await expect(a.getByTestId('summary-food').getByTestId('tile-warning')).toHaveCount(1)
+  // An activity with no photo (the stand-in's 3rd result) shows the letter tile.
+  await expect(a.getByTestId('summary-activities').locator('[data-testid="thumb"][data-fallback="true"]').first()).toBeVisible()
 
   // B leaves: B's food needs stop counting, so the warning goes away.
   expect(await action(b, 'leaveTrip', { tripId })).toMatchObject({ success: true })

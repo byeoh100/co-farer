@@ -53,7 +53,7 @@ function sectionsFor(trip: Trip, members: Member[], me: Member): SectionSlot[] {
       label: 'Housing',
       notice: 'Housing opens once the dates are locked.',
       available: datesLocked,
-      summary: <HousingSummary tripId={trip.id} members={members} />,
+      summary: <HousingSummary trip={trip} members={members} />,
       full: <HousingFull trip={trip} members={members} me={me} />,
     },
     {

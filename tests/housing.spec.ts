@@ -162,6 +162,13 @@ test('Housing: wait, suggest, paste, remove, vote live, fit, lock, unlock clears
   expect(await action(a, 'toggleVote', { ...h, optionId: 'any' })).toMatchObject({ code: 'board_locked' })
   await a.keyboard.press('Escape')
   await expect(a.getByTestId('my-essentials')).toContainText('$40 of $100', { timeout: 15_000 })
+  // The locked card: the place's photo, name, nights, price per person and total.
+  const summary = a.getByTestId('housing-summary')
+  await expect(summary.getByTestId('locked-name')).toHaveText('Test stay 1')
+  await expect(summary.getByTestId('locked-details')).toHaveText('2 nights · $40 / person · $120 total')
+  // The stand-in's photo can't load (example.test), so the letter tile shows instead.
+  await expect(summary.getByTestId('thumb')).toHaveAttribute('data-fallback', 'true', { timeout: 15_000 })
+  await expect(summary.getByTestId('thumb')).toHaveText('T')
 
   // Unlocking the dates warns, then clears housing: waiting again, no places or votes.
   await a.getByTestId('dates-bar').click()
