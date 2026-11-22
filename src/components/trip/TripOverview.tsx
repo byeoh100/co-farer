@@ -24,6 +24,8 @@ import { HousingFull } from '../housing/HousingFull'
 import { HousingSummary } from '../housing/HousingSummary'
 import { TravelFull } from '../travel/TravelFull'
 import { TravelSummary } from '../travel/TravelSummary'
+import { NotesFull } from '../notes/NotesFull'
+import { NotesSummary } from '../notes/NotesSummary'
 import { ExpandableSection, SectionStageContext } from './ExpandableSection'
 
 type SectionId = 'housing' | 'travel' | 'additional' | 'notes'
@@ -62,7 +64,14 @@ function sectionsFor(trip: Trip, members: Member[], me: Member): SectionSlot[] {
       full: <TravelFull trip={trip} members={members} me={me} />,
     },
     { id: 'additional', label: 'Additional', notice: NOT_READY, available: false },
-    { id: 'notes', label: 'Notes', notice: NOT_READY, available: false },
+    {
+      id: 'notes',
+      label: 'Notes',
+      notice: NOT_READY,
+      available: true,
+      summary: <NotesSummary tripId={trip.id} />,
+      full: <NotesFull trip={trip} me={me} />,
+    },
   ]
 }
 

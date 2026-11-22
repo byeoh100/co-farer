@@ -29,6 +29,7 @@ const steps: CleanupStep[] = [
   (tools, tripId, userId) => deleteAll(tools, 'votes', { tripId, userId }),
   // Module 4: their seat claim and travel go; if they drove, their riders are released.
   cleanupTravelOnLeave,
+  // Module 5: nothing. Their notes stay on the board, grayed out (spec: edge cases).
 ]
 
 export async function runLeaveCleanup(tools: ActionTools, tripId: string, userId: string): Promise<void> {

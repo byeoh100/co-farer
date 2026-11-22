@@ -17,6 +17,7 @@ import { isLocalTestAccount } from './local-test'
 
 /** Every trip-scoped collection, with the column holding the trip id. */
 const TRIP_ROWS: Array<[collection: string, tripField: string]> = [
+  ['notes', 'tripId'],
   ['pickup_notes', 'tripId'],
   ['seat_claims', 'tripId'],
   ['travel', 'tripId'],

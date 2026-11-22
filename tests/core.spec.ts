@@ -58,7 +58,7 @@ test('Core: create, join, private and public budgets, non-member refused', async
   // Housing (Module 3) waits for locked dates; unbuilt sections aren't ready.
   await a.page.getByTestId('section-housing').click({ force: true })
   await expect(a.page.getByText('Housing opens once the dates are locked.').first()).toBeVisible()
-  await a.page.getByTestId('section-notes').click({ force: true })
+  await a.page.getByTestId('section-additional').click({ force: true })
   await expect(a.page.getByText('This part isn’t ready yet.').first()).toBeVisible()
 
   // A (organizer) reads the invite link from the members panel.

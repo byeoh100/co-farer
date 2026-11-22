@@ -351,3 +351,27 @@ export function useCarPickups(tripId: string, driverUserId: string | null, key: 
   }, [tripId, driverUserId, key])
   return notes
 }
+
+// ── Module 5: Notes ─────────────────────────────────────────────────────
+
+export interface Note {
+  id: string
+  authorId: string
+  text: string
+  createdAt: string
+  editedAt: string | null
+}
+
+/** The trip's notes, newest first. */
+export function useNotes(tripId: string | undefined): Note[] {
+  const { records } = useQuery<{ authorId: string; text: string; editedAt?: string | null }>('notes', {
+    where: { tripId: tripId ?? '' },
+  })
+  return useMemo(
+    () =>
+      records
+        .map((r): Note => ({ id: r.recordId, authorId: r.data.authorId, text: r.data.text, createdAt: r.createdAt, editedAt: r.data.editedAt || null }))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id)),
+    [records],
+  )
+}
