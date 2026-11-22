@@ -12,8 +12,12 @@
 
 import type { Page } from '@playwright/test'
 import { test, expect, loadAllTestAccounts } from 'deepspace/testing'
+import { cleanupTestTrips } from './helpers/cleanup'
 
 test.skip(loadAllTestAccounts().length < 2, 'Needs 2 test accounts (see tests/collab.spec.ts).')
+
+// Delete the trips these tests created, so test accounts never pile them up.
+test.afterEach(cleanupTestTrips)
 
 /** Calls a server action from inside the page, as that browser's user. */
 async function action(page: Page, name: string, params: Record<string, unknown>) {
@@ -41,7 +45,7 @@ test('Core: create, join, private and public budgets, non-member refused', async
   await a.page.goto('/trips')
   await a.page.getByTestId('new-trip').click()
   await a.page.getByLabel('Trip name').fill(tripName)
-  await a.page.getByLabel('Destination (optional)').fill('Cachuma Lake')
+  await a.page.getByLabel('Destination').fill('Cachuma Lake')
   await a.page.getByTestId('create-trip').click()
   await a.page.waitForURL(/\/trip\/[^/]+\/settings\?welcome=1/, { timeout: 20_000 })
   const tripId = new URL(a.page.url()).pathname.split('/')[2]
@@ -51,7 +55,10 @@ test('Core: create, join, private and public budgets, non-member refused', async
 
   // The frame: disabled sections show a notice instead of opening.
   // aria-disabled makes Playwright wait for "enabled"; a real click still fires, so force it.
+  // Housing (Module 3) waits for locked dates; unbuilt sections aren't ready.
   await a.page.getByTestId('section-housing').click({ force: true })
+  await expect(a.page.getByText('Housing opens once the dates are locked.').first()).toBeVisible()
+  await a.page.getByTestId('section-travel').click({ force: true })
   await expect(a.page.getByText('This part isn’t ready yet.').first()).toBeVisible()
 
   // A (organizer) reads the invite link from the members panel.
@@ -131,7 +138,7 @@ test('Core: a non-member cannot join a trip presence room', async ({ users }) =>
   const [a, b] = await users(2)
   await a.page.goto('/trips')
   await expect(a.page.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
-  const created = (await action(a.page, 'createTrip', { name: 'Presence check' })) as { success: boolean; data: { tripId: string } }
+  const created = (await action(a.page, 'createTrip', { name: 'Presence check', destination: 'Cachuma Lake' })) as { success: boolean; data: { tripId: string } }
   expect(created.success).toBe(true)
 
   await b.page.goto('/trips')
@@ -180,7 +187,7 @@ test('Core: a saved profile (name + picture) sticks and shows in trips', async (
   await expect(a.page.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
   const custom = `Al ${Date.now().toString(36)}`
   const pic = '/api/files/app/avatars/test.jpg?scope=app'
-  const trip = (await action(a.page, 'createTrip', { name: 'Profile check' })) as { data: { tripId: string } }
+  const trip = (await action(a.page, 'createTrip', { name: 'Profile check', destination: 'Cachuma Lake' })) as { data: { tripId: string } }
   // Regression: name and imageUrl on `users` are system-managed, so saving
   // there failed with a picture and silently did nothing for a new name.
   expect(await action(a.page, 'updateMyProfile', { name: custom, imageUrl: pic })).toMatchObject({ success: true })
@@ -207,7 +214,7 @@ test('Core: invite link copies on the first open, even if the clipboard API refu
   await a.context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await a.page.goto('/trips')
   await expect(a.page.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
-  const trip = (await action(a.page, 'createTrip', { name: 'Copy check' })) as { data: { tripId: string } }
+  const trip = (await action(a.page, 'createTrip', { name: 'Copy check', destination: 'Cachuma Lake' })) as { data: { tripId: string } }
   await a.page.goto(`/trip/${trip.data.tripId}`)
   // Simulate a browser that rejects navigator.clipboard.writeText (seen in a
   // real browser on the first open of the members panel).

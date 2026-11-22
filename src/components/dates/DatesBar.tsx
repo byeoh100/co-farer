@@ -9,11 +9,13 @@ import { CalendarDays, ChevronDown, Lock } from 'lucide-react'
 import { ConfirmModal, Popover, PopoverContent, PopoverTrigger, useToast } from '@/components/ui'
 import { callAction } from '../../lib/actions-client'
 import { formatRange, freeByDay, freeForWholeSpan } from '../../lib/dates'
-import { useAvailability, type Member, type Trip } from '../../lib/trip-data'
+import { useAvailability, useOptions, type Member, type Trip } from '../../lib/trip-data'
 import { DatesCalendar } from './DatesCalendar'
 
 export function DatesBar({ trip, members, me }: { trip: Trip; members: Member[]; me: Member }) {
   const { ranges } = useAvailability(trip.id)
+  // The housing warning appears only when there's housing research to lose.
+  const { options: housingOptions } = useOptions(trip.id, 'housing')
   const { success, error } = useToast()
   const [open, setOpen] = useState(false)
   const [confirmUnlock, setConfirmUnlock] = useState(false)
@@ -82,7 +84,11 @@ export function DatesBar({ trip, members, me }: { trip: Trip; members: Member[];
         onConfirm={unlock}
         loading={unlocking}
         title="Unlock the dates?"
-        description="Everyone’s availability is kept, and people can change it again."
+        description={
+          housingOptions.length > 0
+            ? 'Housing will have to be researched again: all its places and votes are removed, and housing waits for the new dates. Everyone’s availability is kept.'
+            : 'Everyone’s availability is kept, and people can change it again.'
+        }
         confirmText="Unlock dates"
       />
     </>

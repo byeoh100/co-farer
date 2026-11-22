@@ -24,6 +24,8 @@ const steps: CleanupStep[] = [
   (tools, tripId, userId) => deleteAll(tools, 'public_budgets', { tripId, userId }),
   // Module 2: their availability stops counting (decided with the human).
   (tools, tripId, userId) => deleteAll(tools, 'availability', { tripId, userId }),
+  // Module 3: their votes are removed (spec: edge cases).
+  (tools, tripId, userId) => deleteAll(tools, 'votes', { tripId, userId }),
 ]
 
 export async function runLeaveCleanup(tools: ActionTools, tripId: string, userId: string): Promise<void> {

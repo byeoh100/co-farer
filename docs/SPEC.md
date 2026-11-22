@@ -42,7 +42,7 @@ Dates are built before housing because housing research waits for locked dates. 
 - The **total budget** adds up the essentials only: housing and gas. It is shown on the person's own page.
 - Each category shows the estimated cost beside the budget. Going over is flagged, never blocked.
 - Each category has its own **private or public switch**, private by default. Public budgets show next to the person's name; private ones only count toward anonymous totals.
-- Budget fit is shown as counts, for example "over the housing budget for 2 of 6". With fewer than 3 responses, show a softer message so counts can't identify anyone.
+- Budget fit is shown as counts, for example "over the housing budget for 2 of 6". In a trip of 3 or more members, with fewer than 3 responses, show a softer message so counts can't identify anyone. Trips of 1 or 2 members show counts (and use their budgets for the search's price band) as soon as one budget is set: a solo traveler sees only their own budget, and two people travelling together already know each other's (decided with the human, Module 3).
 
 ## 2. Dates
 
@@ -54,7 +54,7 @@ Dates are built before housing because housing research waits for locked dates. 
 ## 3. Housing
 
 - Starts only after dates are locked, so nothing is researched twice.
-- The AI suggests the **top 5 options** using a rough group price band, never any one person's exact budget.
+- The AI suggests the **top 5 options** using a rough group price band, never any one person's exact budget. When only some people have set a housing budget, the band is centered on their average, and the search also gets the whole group's total (that average × the group size), so everyone is counted (decided with the human, Module 3).
 - Anyone can **paste links** or add options by name; the AI researches those too.
 - Each option shows a summary, estimated price per person, pros and cons, sources, and housing budget fit.
 - Members vote live. The organizer can set, change, or remove a deadline. At the deadline the top option locks; on a tie, the organizer picks. The organizer can lock early.

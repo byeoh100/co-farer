@@ -19,8 +19,16 @@ describe('computeCategoryFit', () => {
     expect(fit.overBudgetCount).toBe(0)
   })
 
-  it('flags too few responses so the UI can soften the message', () => {
+  it('flags too few responses so the UI can soften the message (3+ members)', () => {
     expect(computeCategoryFit([100, 200], 6, 150).tooFewResponses).toBe(true)
+    expect(computeCategoryFit([100, 200], 3, 150).tooFewResponses).toBe(true)
+  })
+
+  it('shows counts for trips of 1–2 members as soon as one budget is set', () => {
+    expect(computeCategoryFit([100], 1, 150)).toMatchObject({ tooFewResponses: false, overBudgetCount: 1 })
+    expect(computeCategoryFit([100, null], 2, 150)).toMatchObject({ tooFewResponses: false, respondedCount: 1 })
+    expect(computeCategoryFit([100, 200], 2, 150)).toMatchObject({ tooFewResponses: false, overBudgetCount: 1 })
+    expect(computeCategoryFit([], 2, 150).tooFewResponses).toBe(true)
   })
 
   it('outputs only counts, never the budgets themselves', () => {
@@ -31,12 +39,25 @@ describe('computeCategoryFit', () => {
 })
 
 describe('groupPriceBand', () => {
-  it('returns null with fewer than 3 budgets', () => {
-    expect(groupPriceBand([200, 300])).toBeNull()
+  it('returns null with one budget in a group of 3+ (it would be that person’s number)', () => {
+    expect(groupPriceBand([200], 3)).toBeNull()
+    expect(groupPriceBand([200, null, null], 6)).toBeNull()
+  })
+
+  it('centers on the average of the budgets set when some people haven’t set one', () => {
+    // 2 of 3 set: average 150 → $150–$200 per person; the third person is assumed at the average.
+    expect(groupPriceBand([100, 200, null], 3)).toEqual({ low: 150, high: 200 })
+    expect(groupPriceBand([120, 190], 5)).toEqual({ low: 150, high: 200 })
+  })
+
+  it('uses any budgets set in a trip of 1–2 members', () => {
+    expect(groupPriceBand([137], 1)).toEqual({ low: 100, high: 150 })
+    expect(groupPriceBand([200, 300], 2)).toEqual({ low: 200, high: 300 })
+    expect(groupPriceBand([], 1)).toBeNull()
   })
 
   it('rounds outward to the band step', () => {
-    const band = groupPriceBand([137, 263, 419, 180])!
+    const band = groupPriceBand([137, 263, 419, 180], 4)!
     expect(band.low % PRICE_BAND_STEP).toBe(0)
     expect(band.high % PRICE_BAND_STEP).toBe(0)
     expect(band.low).toBeLessThan(band.high)
@@ -46,7 +67,7 @@ describe('groupPriceBand', () => {
   })
 
   it('never returns an empty band', () => {
-    expect(groupPriceBand([100, 100, 100])).toEqual({ low: 100, high: 150 })
+    expect(groupPriceBand([100, 100, 100], 3)).toEqual({ low: 100, high: 150 })
   })
 })
 

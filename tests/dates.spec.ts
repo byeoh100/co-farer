@@ -9,8 +9,12 @@
 
 import type { Page } from '@playwright/test'
 import { test, expect, loadAllTestAccounts } from 'deepspace/testing'
+import { cleanupTestTrips } from './helpers/cleanup'
 
 test.skip(loadAllTestAccounts().length < 2, 'Needs 2 test accounts (see tests/collab.spec.ts).')
+
+// Delete the trips these tests created, so test accounts never pile them up.
+test.afterEach(cleanupTestTrips)
 
 async function action(page: Page, name: string, params: Record<string, unknown>) {
   return page.evaluate(
@@ -54,7 +58,7 @@ test('Dates: ranges, matching heatmap, lock, refusals, unlock, leave', async ({ 
   // Setup: A organizes, B joins by link.
   await a.page.goto('/trips')
   await expect(a.page.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
-  const created = (await action(a.page, 'createTrip', { name: 'Dates check' })) as { data: { tripId: string } }
+  const created = (await action(a.page, 'createTrip', { name: 'Dates check', destination: 'Cachuma Lake' })) as { data: { tripId: string } }
   const tripId = created.data.tripId
   await a.page.goto(`/trip/${tripId}`)
   await a.page.getByTestId('members-stack').click({ timeout: 15_000 })
@@ -143,7 +147,7 @@ test('Dates: the server refuses bad ranges and other people’s ranges', async (
   const [a, b] = await users(2)
   await a.page.goto('/trips')
   await expect(a.page.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
-  const { data } = (await action(a.page, 'createTrip', { name: 'Dates refusals' })) as { data: { tripId: string } }
+  const { data } = (await action(a.page, 'createTrip', { name: 'Dates refusals', destination: 'Cachuma Lake' })) as { data: { tripId: string } }
   const tripId = data.tripId
 
   for (const bad of [

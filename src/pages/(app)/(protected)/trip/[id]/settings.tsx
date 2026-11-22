@@ -13,7 +13,7 @@ import { BUDGET_CATEGORIES, type BudgetCategory } from '../../../../../schemas/t
 import { summarizeMyBudget } from '../../../../../lib/budget-fit'
 import { MAX_BUDGET } from '../../../../../lib/core-input'
 import { callAction } from '../../../../../lib/actions-client'
-import { useMyBudget } from '../../../../../lib/trip-data'
+import { useHousingEstimate, useMyBudget } from '../../../../../lib/trip-data'
 import { useTripContext } from '../../../../../lib/trip-context'
 
 const LABELS: Record<BudgetCategory, { title: string; hint: string }> = {
@@ -32,6 +32,7 @@ export default function TripSettingsPage() {
   const navigate = useNavigate()
   const { success, error } = useToast()
   const { budget, status } = useMyBudget(trip.id, me.userId)
+  const housingEstimate = useHousingEstimate(trip.id)
 
   const [draft, setDraft] = useState<Draft | null>(null)
   const [saving, setSaving] = useState(false)
@@ -61,8 +62,8 @@ export default function TripSettingsPage() {
     const n = asNumbers[c]
     return n != null && (!Number.isInteger(n) || n < 0 || n > MAX_BUDGET)
   })
-  // No estimates exist yet: locked housing (Module 3) and gas (stretch) add them.
-  const summary = summarizeMyBudget(asNumbers, {}, BUDGET_CATEGORIES)
+  // Locked housing's price per person is the housing estimate; gas comes with the stretch.
+  const summary = summarizeMyBudget(asNumbers, { housing: housingEstimate }, BUDGET_CATEGORIES)
 
   const save = async () => {
     setSaving(true)
@@ -183,6 +184,8 @@ export default function TripSettingsPage() {
         )}
       </div>
 
+      {me.tripRole === 'organizer' && <TripDetails tripId={trip.id} name={trip.name} destination={trip.destination ?? ''} />}
+
       {me.tripRole !== 'organizer' && (
         <section className="mt-10 border-t border-border pt-6">
           <h2 className="text-sm font-medium">Leave this trip</h2>
@@ -205,5 +208,42 @@ export default function TripSettingsPage() {
         variant="destructive"
       />
     </div>
+  )
+}
+
+/** Organizer only: the trip's name and destination (both required). */
+function TripDetails({ tripId, name, destination }: { tripId: string; name: string; destination: string }) {
+  const { success, error } = useToast()
+  const [draftName, setDraftName] = useState(name)
+  const [draftDest, setDraftDest] = useState(destination)
+  const [saving, setSaving] = useState(false)
+  const changed = draftName.trim() !== name || draftDest.trim() !== destination
+
+  const save = async () => {
+    setSaving(true)
+    const res = await callAction('updateTrip', { tripId, name: draftName, destination: draftDest })
+    setSaving(false)
+    if (res.success) success('Trip details saved')
+    else error('Could not save', res.error)
+  }
+
+  return (
+    <section className="mt-10 border-t border-border pt-6" data-testid="trip-details">
+      <h2 className="text-sm font-medium">Trip details</h2>
+      <p className="mt-1 text-xs text-muted-foreground">Only the organizer can change these. Housing research uses the destination.</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="trip-name-edit">Trip name</Label>
+          <Input id="trip-name-edit" maxLength={120} value={draftName} onChange={(e) => setDraftName(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="trip-destination-edit">Destination</Label>
+          <Input id="trip-destination-edit" maxLength={200} value={draftDest} onChange={(e) => setDraftDest(e.target.value)} />
+        </div>
+      </div>
+      <Button size="sm" className="mt-3" onClick={save} loading={saving} disabled={!changed || !draftName.trim() || !draftDest.trim()} data-testid="save-trip-details">
+        Save trip details
+      </Button>
+    </section>
   )
 }

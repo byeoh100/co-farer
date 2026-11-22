@@ -2,6 +2,8 @@ import type { ActionHandler } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import { coreActions } from './core'
 import { datesActions } from './dates'
+import { engineActions } from './engine'
+import { testCleanupActions } from './test-cleanup'
 
 /**
  * Server actions. Every trip write goes through here (PLAN.md §2).
@@ -13,4 +15,6 @@ import { datesActions } from './dates'
 export const actions: Record<string, ActionHandler<Env>> = {
   ...coreActions, // Module 1: Core
   ...datesActions, // Module 2: Dates
+  ...engineActions, // Module 3: Housing (the shared engine)
+  ...testCleanupActions, // local test accounts only (refused everywhere else)
 }

@@ -2,24 +2,27 @@
  * The trip page (docs/LAYOUT.md). Layout lives here and nowhere else: modules
  * only supply a <Name>Summary / <Name>Full pair for their slot.
  *
- * Module 1 ships the frame: header, the date bar and four section slots.
- * Module 2 fills the date bar. No section's module is built yet, so every
- * section renders disabled:
+ * Header, the date bar (Module 2), and four section slots. A section whose
+ * module is built and usable renders as an ExpandableSection (Module 3+).
+ * Otherwise it renders disabled:
  *   - mobile (< 900px): a grayed card in the 2 × 2 grid;
  *   - desktop (≥ 900px): a thin bar, labeled, with no information;
  *   - clicking shows a notice instead of opening.
- * ExpandableSection (the expand animation) arrives with Module 3.
  */
 
+import { useRef, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Settings2 } from 'lucide-react'
 import { useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { ESSENTIAL_CATEGORIES } from '../../schemas/trip-schemas'
 import { summarizeMyBudget } from '../../lib/budget-fit'
-import { useMyBudget, type Member, type Trip } from '../../lib/trip-data'
+import { useHousingEstimate, useMyBudget, type Member, type Trip } from '../../lib/trip-data'
 import { MembersStack } from './MembersStack'
 import { DatesBar } from '../dates/DatesBar'
+import { HousingFull } from '../housing/HousingFull'
+import { HousingSummary } from '../housing/HousingSummary'
+import { ExpandableSection, SectionStageContext } from './ExpandableSection'
 
 type SectionId = 'housing' | 'travel' | 'additional' | 'notes'
 
@@ -29,22 +32,36 @@ interface SectionSlot {
   /** Shown as a toast when a disabled section is clicked. */
   notice: string
   available: boolean
+  summary?: ReactNode
+  full?: ReactNode
 }
 
 const NOT_READY = 'This part isn’t ready yet.'
 
-/** Each module flips its slot to available when it ships. */
-const SECTIONS: SectionSlot[] = [
-  { id: 'housing', label: 'Housing', notice: NOT_READY, available: false },
-  { id: 'travel', label: 'Travel', notice: NOT_READY, available: false },
-  { id: 'additional', label: 'Additional', notice: NOT_READY, available: false },
-  { id: 'notes', label: 'Notes', notice: NOT_READY, available: false },
-]
+/** Each module fills its slot when it ships. */
+function sectionsFor(trip: Trip, members: Member[], me: Member): SectionSlot[] {
+  const datesLocked = trip.datesStatus === 'locked'
+  return [
+    {
+      id: 'housing',
+      label: 'Housing',
+      notice: 'Housing opens once the dates are locked.',
+      available: datesLocked,
+      summary: <HousingSummary tripId={trip.id} members={members} />,
+      full: <HousingFull trip={trip} members={members} me={me} />,
+    },
+    { id: 'travel', label: 'Travel', notice: NOT_READY, available: false },
+    { id: 'additional', label: 'Additional', notice: NOT_READY, available: false },
+    { id: 'notes', label: 'Notes', notice: NOT_READY, available: false },
+  ]
+}
 
 export function TripOverview({ trip, members, me }: { trip: Trip; members: Member[]; me: Member }) {
   const { info } = useToast()
+  const stageRef = useRef<HTMLDivElement>(null)
   const isOrganizer = me.tripRole === 'organizer'
-  const anyAvailable = SECTIONS.some((s) => s.available)
+  const sections = sectionsFor(trip, members, me)
+  const anyAvailable = sections.some((s) => s.available)
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col gap-3 px-4 py-4 min-[900px]:py-6">
@@ -63,6 +80,9 @@ export function TripOverview({ trip, members, me }: { trip: Trip; members: Membe
         </div>
       </header>
 
+      {/* The stage: a section expands over this area on desktop. */}
+      <div ref={stageRef} className="flex flex-1 flex-col gap-3">
+      <SectionStageContext.Provider value={stageRef}>
       <MyEssentials tripId={trip.id} userId={me.userId} />
 
       <DatesBar trip={trip} members={members} me={me} />
@@ -89,11 +109,15 @@ export function TripOverview({ trip, members, me }: { trip: Trip; members: Membe
         )}
         data-testid="trip-sections"
       >
-        {SECTIONS.map((s) =>
-          s.available ? null /* Module 3+ renders ExpandableSection here. */ : (
+        {sections.map((s) =>
+          s.available ? (
+            <ExpandableSection key={s.id} id={s.id} label={s.label} summary={s.summary} full={s.full} />
+          ) : (
             <DisabledSection key={s.id} section={s} onClick={() => info(s.label, s.notice)} />
           ),
         )}
+      </div>
+      </SectionStageContext.Provider>
       </div>
     </div>
   )
@@ -125,8 +149,9 @@ function DisabledSection({ section, onClick }: { section: SectionSlot; onClick: 
 /** Your essentials total (housing + gas). Only you see this; it's never sent to anyone. */
 function MyEssentials({ tripId, userId }: { tripId: string; userId: string }) {
   const { budget } = useMyBudget(tripId, userId)
-  // No estimates exist until housing locks (Module 3) or gas is computed (stretch).
-  const summary = summarizeMyBudget(budget ?? {}, {}, ESSENTIAL_CATEGORIES)
+  // Locked housing's price per person is the housing estimate; gas comes with the stretch.
+  const housing = useHousingEstimate(tripId)
+  const summary = summarizeMyBudget(budget ?? {}, { housing }, ESSENTIAL_CATEGORIES)
   const hasBudget = summary.lines.some((l) => l.budget != null)
   const hasEstimate = summary.lines.some((l) => l.estimate != null)
 

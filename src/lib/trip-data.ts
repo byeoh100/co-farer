@@ -7,6 +7,8 @@
 import { useMemo } from 'react'
 import { useQuery } from 'deepspace'
 import type { BudgetCategory } from '../schemas/trip-schemas'
+import type { EngineModule } from '../schemas/engine-schemas'
+import type { CategoryFit } from './budget-fit'
 import { readPublicCategories } from './core-input'
 
 export interface Trip {
@@ -19,6 +21,7 @@ export interface Trip {
   /** YYYY-MM-DD; set only while locked. */
   datesStart: string | null
   datesEnd: string | null
+  researchCallsUsed: number
 }
 
 export interface Member {
@@ -38,6 +41,7 @@ type TripRow = {
   datesStatus?: string | null
   datesStart?: string | null
   datesEnd?: string | null
+  researchCallsUsed?: number | null
 }
 type MemberRow = {
   teamId: string
@@ -71,6 +75,7 @@ function toTrip(r: { recordId: string; data: TripRow }): Trip {
     datesStatus: r.data.datesStatus === 'locked' && r.data.datesStart && r.data.datesEnd ? 'locked' : 'open',
     datesStart: r.data.datesStart ?? null,
     datesEnd: r.data.datesEnd ?? null,
+    researchCallsUsed: r.data.researchCallsUsed ?? 0,
   }
 }
 
@@ -153,4 +158,121 @@ export function useAvailability(tripId: string | undefined) {
     [records],
   )
   return { ranges, status }
+}
+
+// ── Module 3: the suggest-research-vote engine ──────────────────────────
+
+export interface Board {
+  id: string
+  module: EngineModule
+  lockable: boolean
+  status: 'waiting_for_dates' | 'open' | 'locked'
+  deadline: string | null
+  winningOptionId: string | null
+  tieAtDeadline: boolean
+}
+
+export interface OptionResearch {
+  summary: string
+  pros: string[]
+  cons: string[]
+  sources: string[]
+}
+
+export interface EngineOption {
+  id: string
+  title: string
+  url: string | null
+  source: 'ai' | 'member'
+  addedBy: string | null
+  researchStatus: 'pending' | 'done' | 'failed'
+  research: OptionResearch | null
+  /** One person's share of the whole stay (total ÷ group size). */
+  price: number | null
+  /** The whole stay for the whole group. */
+  total: number | null
+  priceSource: 'ai' | 'member' | null
+  imageUrl: string | null
+  fit: CategoryFit | null
+  createdAt: string
+}
+
+function parseJson<T>(raw: unknown): T | null {
+  if (typeof raw !== 'string' || !raw) return null
+  try {
+    return JSON.parse(raw) as T
+  } catch {
+    return null
+  }
+}
+
+export function useBoard(tripId: string | undefined, module: EngineModule) {
+  const { records, status } = useQuery<Record<string, unknown>>('boards', { where: { tripId: tripId ?? '', module }, limit: 1 })
+  const board = useMemo((): Board | null => {
+    const r = records[0]
+    if (!r) return null
+    const d = r.data
+    return {
+      id: r.recordId,
+      module,
+      lockable: !!d.lockable,
+      status: d.status === 'locked' ? 'locked' : d.status === 'waiting_for_dates' ? 'waiting_for_dates' : 'open',
+      deadline: typeof d.deadline === 'string' && d.deadline ? d.deadline : null,
+      winningOptionId: typeof d.winningOptionId === 'string' && d.winningOptionId ? d.winningOptionId : null,
+      tieAtDeadline: !!d.tieAtDeadline,
+    }
+  }, [records, module])
+  return { board, status }
+}
+
+export function useOptions(tripId: string | undefined, module: EngineModule) {
+  const { records, status } = useQuery<Record<string, unknown>>('options', { where: { tripId: tripId ?? '', module } })
+  const options = useMemo(
+    () =>
+      records.map((r): EngineOption => {
+        const d = r.data
+        return {
+          id: r.recordId,
+          title: String(d.title ?? ''),
+          url: typeof d.url === 'string' && d.url ? d.url : null,
+          source: d.source === 'ai' ? 'ai' : 'member',
+          addedBy: typeof d.addedBy === 'string' ? d.addedBy : null,
+          researchStatus: d.researchStatus === 'done' ? 'done' : d.researchStatus === 'failed' ? 'failed' : 'pending',
+          research: parseJson<OptionResearch>(d.research),
+          price: typeof d.estPricePerPerson === 'number' ? d.estPricePerPerson : null,
+          total: typeof d.estTotal === 'number' ? d.estTotal : null,
+          priceSource: d.priceSource === 'ai' || d.priceSource === 'member' ? d.priceSource : null,
+          imageUrl: typeof d.imageUrl === 'string' && d.imageUrl.startsWith('https://') ? d.imageUrl : null,
+          fit: parseJson<CategoryFit>(d.fit),
+          createdAt: r.createdAt,
+        }
+      }),
+    [records],
+  )
+  return { options, status }
+}
+
+/** optionId → voter userIds. */
+export function useVotes(tripId: string | undefined) {
+  const { records } = useQuery<{ optionId: string; userId: string; boardId: string }>('votes', { where: { tripId: tripId ?? '' } })
+  return useMemo(() => {
+    const byOption = new Map<string, string[]>()
+    for (const r of records) byOption.set(r.data.optionId, [...(byOption.get(r.data.optionId) ?? []), r.data.userId])
+    return byOption
+  }, [records])
+}
+
+/** Options ranked by votes (then oldest first), with their voters. */
+export function rankOptions(options: EngineOption[], votes: Map<string, string[]>) {
+  return options
+    .map((o) => ({ option: o, voters: votes.get(o.id) ?? [] }))
+    .sort((a, b) => b.voters.length - a.voters.length || a.option.createdAt.localeCompare(b.option.createdAt))
+}
+
+/** Locked housing's price per person: each member's housing estimate (spec §3, PLAN.md §4.3). */
+export function useHousingEstimate(tripId: string | undefined): number | null {
+  const { board } = useBoard(tripId, 'housing')
+  const { options } = useOptions(tripId, 'housing')
+  if (!board || board.status !== 'locked' || !board.winningOptionId) return null
+  return options.find((o) => o.id === board.winningOptionId)?.price ?? null
 }

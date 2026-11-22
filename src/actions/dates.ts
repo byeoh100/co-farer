@@ -8,6 +8,7 @@ import type { Env } from '../../worker'
 import { MAX_RANGES_PER_PERSON, MAX_RANGE_DAYS, addDays, checkRange, isIsoDate, mergeRange, rangeLength } from '../lib/dates'
 import { requireMember, requireOrganizer } from './trip-access'
 import { runDatesUnlockSteps } from './dates-unlock'
+import { openHousingForDates } from './engine'
 
 type Handler = ActionHandler<Env>
 type RangeRow = { tripId: string; userId: string; start: string; end: string } & Record<string, unknown>
@@ -79,6 +80,8 @@ const lockDates: Handler = async ({ userId, params, tools }) => {
   if (rangeLength({ start, end }) > MAX_RANGE_DAYS) return fail(`A trip can be at most ${MAX_RANGE_DAYS} days.`, 'bad_request')
   const res = await tools.update('trips', check.membership.tripId, { datesStatus: 'locked', datesStart: start, datesEnd: end })
   if (!res.success) return fail('Could not lock the dates.', 'lock_failed')
+  // Locking the dates opens Housing (spec §2).
+  await openHousingForDates(tools, check.membership.tripId)
   return ok({ locked: true })
 }
 

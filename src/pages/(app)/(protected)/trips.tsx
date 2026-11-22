@@ -76,11 +76,11 @@ function CreateTripForm({ onCancel }: { onCancel: () => void }) {
         <Input id="trip-name" required maxLength={120} placeholder="Spring break" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="trip-destination">Destination (optional)</Label>
-        <Input id="trip-destination" maxLength={200} placeholder="Cachuma Lake" value={destination} onChange={(e) => setDestination(e.target.value)} />
+        <Label htmlFor="trip-destination">Destination</Label>
+        <Input id="trip-destination" required maxLength={200} placeholder="Cachuma Lake" value={destination} onChange={(e) => setDestination(e.target.value)} />
       </div>
       <div className="flex gap-2">
-        <Button type="submit" loading={busy} disabled={!name.trim()} data-testid="create-trip">
+        <Button type="submit" loading={busy} disabled={!name.trim() || !destination.trim()} data-testid="create-trip">
           Create trip
         </Button>
         <Button type="button" variant="ghost" onClick={onCancel}>

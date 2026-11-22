@@ -116,8 +116,8 @@ These protect the parts reviewers will check most closely: privacy, security and
 **Privacy**
 
 - A private budget is never shown to anyone but its owner: not other members, the organizer, an admin, the AI, or logs.
-- Group budget fit is shown only as counts, computed with `src/lib/budget-fit.ts`. With fewer than 3 responses, show the softer message.
-- AI searches use `groupPriceBand` (rounded to $50, and null with fewer than 3 budgets), never one person's number.
+- Group budget fit is shown only as counts, computed with `src/lib/budget-fit.ts`. In a trip of 3+ members, with fewer than 3 responses, show the softer message. Trips of 1–2 members show counts once one budget is set (`minResponses`).
+- AI searches use `groupPriceBand` (rounded to $50; when only some people set a budget, centered on their average; null with just one budget in a trip of 3+ members), never one person's number in a group of 3+.
 - Food preferences are public, so they live in their own collection, never in `budgets`.
 - Keep the privacy tests passing. If a change needs a privacy test changed, stop and ask the human.
 

@@ -108,6 +108,12 @@ the whole spec and ask for the app.
   field, set equal to the row id by `createTrip`. Trips created before this
   change have no `tripId`, so only their organizer can still see them.
   Report this to DeepSpace too.
+- **Found in Module 3:** the team read rule passes one SQL value per trip
+  you belong to, and the Durable Object's SQLite allows about 100, so a person
+  in more than ~100 trips can't load trip data ("too many SQL variables").
+  Real users won't get near that; test accounts did (Alice reached 117).
+  Tests now delete their old trips through `cleanupMyTestTrips`, which works
+  only for @deepspace.test accounts on a local server. Report this too.
 
 ---
 
@@ -115,8 +121,9 @@ the whole spec and ask for the app.
 
 - **Budget fit** (`src/lib/budget-fit.ts`, done):
   - Fit is counted per category, against that category's budget.
-  - Fewer than 3 responses → `tooFewResponses`, and the UI shows a softer
-    message.
+  - In a trip of 3+ members, fewer than 3 responses → `tooFewResponses`,
+    and the UI shows a softer message. Trips of 1–2 members need only one
+    budget (`minResponses`; the human's decision in Module 3).
   - "Price not found" is left out of the fit check.
   - The person's own total adds up **essentials only (housing + gas)**.
   - Food and activity prices are shown for reference only and never checked.
@@ -307,6 +314,53 @@ when you start building it.
   - Locking works and blocks later votes.
   - The cap message shows at 25 calls (set it to 2 temporarily to test).
 
+- **Decided with the human (Module 3):**
+  - Research model: Claude Opus 5.5 (`RESEARCH_MODEL` in `src/lib/limits.ts`).
+  - No real AI calls during development until the human says so; the reply
+    reader accepts likely formats and logs only the reply's keys if unknown.
+  - Automated tests use a local AI stand-in (test accounts on a local server
+    only; `src/actions/local-test.ts`). Manual checks use the real AI.
+  - At the deadline the top-voted option locks automatically (cron every 15
+    minutes, plus any vote after the deadline). A tie stays open, voting
+    closed, and the organizer picks.
+  - Every trip must have a destination; organizers can edit it.
+  - Prices are stored as the total for the whole stay and group (what the AI
+    reads from listings, and what members type in). The per-person share is
+    the total ÷ the current group size, recomputed when people join or
+    leave, and cards show both.
+  - One research call = one "Suggest" or one researched link/name.
+  - After the first manual test:
+    - The deadline is a number of days to decide (1–30), not a date and
+      time; the status counts down ("Voting closes in 3 days").
+    - A place can be removed, with its votes, by whoever added it (or asked
+      for the suggestion) or by the organizer.
+    - Unlocking the dates deletes housing's places and votes instead of
+      marking them out of date; after relocking, Suggest starts fresh. The
+      research count is not reset.
+    - Places you haven't pointed at or tapped yet have a "New" outline. What
+      you've seen is kept in your browser only.
+    - Cards show a photo when the search returns one for that page (Exa's
+      `image` or `extras.imageLinks`). The photo comes from the search
+      results, never from the model, and only `https` images load, with no
+      referrer.
+    - Search order (the human's list): one search limited to Booking.com,
+      Expedia, KAYAK, Skyscanner and Trivago (prices, reviews, photos),
+      plus one that excludes them, to find the places' own websites for
+      specifics. Google Hotels is left out because it lives on google.com.
+      Both searches together count as one research call. Exa also returns
+      the passages that mention prices and ratings, and the model may use an
+      advertised nightly or "from" rate.
+    - Trips of 1–2 members skip the 3-budget minimum: fit counts show (and
+      the search's price band uses their budgets) as soon as one budget is
+      set. A solo trip reads "Fits your housing budget". From 3 members on,
+      the minimum applies again, switching automatically as people join.
+    - The search's price band no longer waits for 3 budgets. When only some
+      people have set one, it's centered on their average (rounded to $50)
+      and the search also gets the whole group's total (that × group size),
+      so the people without a budget are counted at the average. One budget
+      in a trip of 3+ gives no band, since it would be that person's
+      number. Fit on the cards still follows the rule above.
+
 ### 4.4 Transportation
 
 - **Trip page:** `TravelSummary` and `TravelFull`, in the Travel section.
@@ -450,7 +504,8 @@ when you start building it.
 - **Privacy tests, which must always pass:**
   - A can't read B's private budget through `budgets`, `public_budgets`,
     `options.fit`, or a non-member action call.
-  - The price band is null with fewer than 3 budgets.
+  - The price band is null with just one budget in a trip of 3+ members
+    (trips of 1–2 members use any budgets set).
 - **Real-world testing:** first, mock trips of 2 to 3 people, to test joining,
   dates and voting. Then the 5 to 6 person Cachuma Lake group as the final
   test. Log what broke for the writeup.
@@ -490,5 +545,6 @@ is Phase 1 of `docs/BUILD_GUIDE.md`.
 | Setup (2026-11-21) | Phase 1: renamed the project from Trip Quorum to Co-farer in code, config and docs (your call). Registered the app as `co-farer`, added the GitHub remote and pushed, then made the first deploy to https://co-farer.app.space; `app source` confirms the code lives on GitHub. Validate: 14 tests pass. `alice@`/`bob@deepspace.test` were already taken (test emails are global across all developers), so the test accounts are `alice-cofarer@` and `bob-cofarer@deepspace.test`. Saved the Exa and Anthropic request shapes to `docs/integrations.md`; Anthropic printed no output schema. | I could reach the website and sign in with my email successfully. |
 | Layout update (2026-11-21) | Added `docs/LAYOUT.md` and the two mockups. The trip page is now one overview (`TripOverview`) instead of tabs: a header with profile-picture circles, a date bar whose calendar opens as a pop-up (no dimmed screen), and four expanding sections. Activities and Food share "Additional". Unavailable sections stay visible but disabled, which replaces "hidden". Before dates lock, the date bar shows only "Not locked yet"; the overlap hint moves to the best-window stretch. Before estimates exist, the header total reads "Budget $X · no estimates yet". Updated the spec, plan and build guide to match. UI only: no actions, schemas or privacy rules changed. | Verified that Claude understood the layout changes requested. |
 | Module 1: Core (2026-11-21) | Built the Core actions (`createTrip`, `getInvite`, `joinTrip`, `leaveTrip`, `rotateInviteCode`, `setMyBudgets`, `updateMyProfile`), each guarded by `requireMember`/`requireOrganizer` except `updateMyProfile` (approved exception: it isn't about a single trip, uses only `ctx.userId` and touches only the caller's rows). Pages: landing, My trips, Join, trip settings (budgets, privacy switches, Leave), `TripOverview` with disabled sections, and Profile with a picture-centering pop-up. Members show as Google Docs-style circles, in color when online and gray when not, from a per-trip presence room that only active members can join. Your decisions: one profile shown only to tripmates (`roster: 'read-policy'`, per-trip copy in `team_members`); default avatar is the first initial on a color fixed per person; disabled-section notice says "This part isn't ready yet"; `ExpandableSection` moved to Module 3; on leaving, public budget rows are removed and the private row is kept; add the picture cropper. What broke: (1) the join-refresh bug from §2 is real (the SDK reads `UserId`); the `RecordScope` remount workaround passes the two-user test. (2) Saving a profile failed because DeepSpace manages `name` and `imageUrl` on `users`; moved profiles to an owner-only `profiles` collection and gave non-admins no direct `users` writes. (3) The e2e run hung because Playwright waits on `aria-disabled` buttons; the test now forces the click. (4) The starter's API-status test was flaky (a 100 ms loading state); lengthened it to 1 s. (5) A raw `budgets` read through the browser tool route isn't available in this SDK (404), so that check was dropped; the schema test pins `budgets` as owner-only. Tests: 33 unit, 15 e2e passing. Deployed to https://co-farer.app.space. | Tested all built features with the following flow: logged into site with 2 accounts. Created a trip on account A. Tested private and public budget visibilities. Invited B to trip, checked budget visibilities. Checked "not online" greyed out feature. Tested customizing profile. Noted that we need a icon centering widget. Trip privacy outside of link tested. Phone view tested. Tested leaving the trip. Tested links and expired links. |
-| Module 1 fix (2026-11-21) | Safari: copying the invite link failed on the first open of the members panel (the async clipboard API was refused; it never reproduced in Chromium). Added a fallback that selects the link box and uses the older copy command, plus an e2e test that forces the clipboard API to refuse. Also found that Safari can't sign in on the local dev server: DeepSpace's session cookie is `__Secure-`/`Secure`, which Safari drops on plain `http://localhost` (Chrome and Firefox allow it). Safari testing uses the live site. Deployed. | _fill in_ |
-| Module 2: Dates (2026-11-21) | Built `availability` plus the trip date fields; the actions `addAvailability` (blends your own overlapping or touching ranges), `removeAvailability`, `lockDates` and `unlockDates` (organizer only), with an empty "when dates unlock" step list for Module 3; leave cleanup removes your dates. `src/lib/dates.ts` holds the pure date logic (validation, merging, per-day counts, month grid; 18 unit tests). The date bar shows "Not locked yet" or the locked dates with how many are free for all of them. The calendar pop-up is animated, closes on an outside click or Escape, and doesn't dim the page. Organizer has a "Final dates" mode, and unlocking asks to confirm. Your decisions: availability removed on leave; simple unlock warning until Housing exists; read-only while locked; limits (no reversed or past ranges, 60 days per range, 20 ranges); blend overlapping ranges; show each free person's circle on the calendar instead of a heatmap; thin dark outline on all profile circles. What broke: (1) a DeepSpace bug: with `teamField: '_rowId'`, only a row's creator got live updates, so B never saw the lock; `trips` now uses a real `tripId` column (older trips are visible only to their organizer). (2) The profile e2e test left a fake picture and name on the shared Alice account; it now restores them, and avatars fall back to the initial when a picture fails to load. (3) The unlock confirmation would close with the pop-up, so it moved outside the pop-up. Tests: 51 unit, 18 e2e passing. Deployed. | _fill in_ |
+| Module 1 fix (2026-11-21) | Safari: copying the invite link failed on the first open of the members panel (the async clipboard API was refused; it never reproduced in Chromium). Added a fallback that selects the link box and uses the older copy command, plus an e2e test that forces the clipboard API to refuse. Also found that Safari can't sign in on the local dev server: DeepSpace's session cookie is `__Secure-`/`Secure`, which Safari drops on plain `http://localhost` (Chrome and Firefox allow it). Safari testing uses the live site. Deployed. | Found that copying the invite link in Safari said "could not copy link" the first time the members panel was opened, but worked after a refresh. Found that Safari sign-in didn't work on the local server. Approved deploying the fix and verified sign-in works on the live site. |
+| Module 2: Dates (2026-11-21) | Built `availability` plus the trip date fields; the actions `addAvailability` (blends your own overlapping or touching ranges), `removeAvailability`, `lockDates` and `unlockDates` (organizer only), with an empty "when dates unlock" step list for Module 3; leave cleanup removes your dates. `src/lib/dates.ts` holds the pure date logic (validation, merging, per-day counts, month grid; 18 unit tests). The date bar shows "Not locked yet" or the locked dates with how many are free for all of them. The calendar pop-up is animated, closes on an outside click or Escape, and doesn't dim the page. Organizer has a "Final dates" mode, and unlocking asks to confirm. Your decisions: availability removed on leave; simple unlock warning until Housing exists; read-only while locked; limits (no reversed or past ranges, 60 days per range, 20 ranges); blend overlapping ranges; show each free person's circle on the calendar instead of a heatmap; thin dark outline on all profile circles. What broke: (1) a DeepSpace bug: with `teamField: '_rowId'`, only a row's creator got live updates, so B never saw the lock; `trips` now uses a real `tripId` column (older trips are visible only to their organizer). (2) The profile e2e test left a fake picture and name on the shared Alice account; it now restores them, and avatars fall back to the initial when a picture fails to load. (3) The unlock confirmation would close with the pop-up, so it moved outside the pop-up. Tests: 51 unit, 18 e2e passing. Deployed. | Asked for overlapping date ranges from the same person to blend into one. Found a bug where joining from an invite said "trip not found" even though the new member showed up greyed out. Replaced the heatmap idea with each person's circle on the days they're free. Noted that white profile pictures were hard to see; asked for a thin black outline on the calendar and the online status. Verified everything worked on the live site before moving on. |
+| Module 3: Housing (2026-11-21) | Built the shared engine (`boards`, `options`, `votes`) and Housing: Suggest (Exa search, then Claude Opus 5.5 with no tools; the search uses only the rounded group price band), add a link or name, live approval voting, fit counts, prices, a deadline that auto-locks the top option (cron every 15 minutes; a tie stays open for the organizer), lock early, and the 25-call cap. Built `ExpandableSection` (the card grows to fill the page, `?section=housing`, Escape and Back close it). Destination is now required and editable by the organizer. Safety in code: search text is wrapped as untrusted data, sources not in the search results are dropped, a missing price stays "Price not found". Automated tests use a local AI stand-in for test accounts only. What broke: (1) another DeepSpace limit: the team read rule passes one SQL value per trip, so an account in ~100+ trips can't load trip data; tests now delete their own old trips (`cleanupMyTestTrips`, local test accounts only), and local data was cleared once with your OK. (2) The Core test expected Housing to say "isn't ready yet"; it now expects the dates notice. After your first test: deadline in days, remove a place, total prices shown with per person, unlocking clears housing, "New" outlines, photos on cards; searches go to the booking and comparison sites first, then the places' own websites, with price passages pulled out; trips of 1–2 members show fit and use their budgets for the price band with just one budget set (spec and build guide updated); when only some people set a budget, the search's price range is their average (per person and × group size). Tests: 81 unit, 20 e2e passing. Deployed. | Tested the housing section with the real AI. Changed the voting deadline to a number of days instead of a date and time. Pasted random links on purpose and found the cards said the info was unrelated, with no way to remove them; asked for a remove option. Changed manual prices to the total for the stay, shown alongside the per person price. Found that unlocking and relocking the dates left old places that "5 new AI suggestions" couldn't replace; asked for housing to clear instead. Asked for new suggestions to be outlined until moused over, and for photos of each place. Noticed the AI usually couldn't find prices and the photos weren't great; asked for the search to prioritize Google Hotels, KAYAK, Skyscanner, Trivago, Booking.com and Expedia, plus the hotel's own website for specifics. Asked why fit needed 3 budgets; decided that solo and 2-person trips should show fit without the hiding, since a solo traveler only has their own budget and two people travelling together already know each other's. Kept the 3-budget rule for groups of 3+. Asked for the search not to ignore budgets that are set: when only some people set one, average them and multiply by the group size to get a price range that includes everyone. |

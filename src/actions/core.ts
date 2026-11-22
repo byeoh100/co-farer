@@ -17,6 +17,7 @@ import {
 } from '../lib/core-input'
 import { requireMember, requireOrganizer } from './trip-access'
 import { runLeaveCleanup } from './leave-cleanup'
+import { refreshHousingFit } from './engine'
 
 type Handler = ActionHandler<Env>
 
@@ -67,7 +68,8 @@ async function findMembership(tools: ActionTools, tripId: string, userId: string
 const createTrip: Handler = async ({ userId, params, tools }) => {
   const name = parseText(params.name, 'Trip name', 120)
   if (!name.ok) return fail(name.error, 'bad_request')
-  const destination = parseText(params.destination, 'Destination', 200, false)
+  // Every trip has a destination (the human's call in Module 3; housing research needs it).
+  const destination = parseText(params.destination, 'Destination', 200)
   if (!destination.ok) return fail(destination.error, 'bad_request')
 
   // Row id and `tripId` are the same value; `tripId` is the team field.
@@ -131,6 +133,7 @@ const joinTrip: Handler = async ({ userId, params, tools }) => {
       const res = await tools.update('team_members', existing.recordId, { status: 'active', ...profile })
       if (!res.success) return fail('Could not join the trip.', 'join_failed')
     }
+    await refreshHousingFit(tools, tripId) // the per-person share depends on group size
     return ok({ tripId })
   }
   const created = await tools.create('team_members', {
@@ -144,6 +147,7 @@ const joinTrip: Handler = async ({ userId, params, tools }) => {
   if (!created.success && !(await findMembership(tools, tripId, userId))) {
     return fail('Could not join the trip.', 'join_failed')
   }
+  await refreshHousingFit(tools, tripId)
   return ok({ tripId })
 }
 
@@ -156,7 +160,21 @@ const leaveTrip: Handler = async ({ userId, params, tools }) => {
   await runLeaveCleanup(tools, check.membership.tripId, userId)
   const res = await tools.update('team_members', check.membership.recordId, { status: 'left' })
   if (!res.success) return fail('Could not leave the trip.', 'leave_failed')
+  await refreshHousingFit(tools, check.membership.tripId)
   return ok({ left: true })
+}
+
+/** Organizer edits the trip's name and destination (both required). */
+const updateTrip: Handler = async ({ userId, params, tools }) => {
+  const check = await requireOrganizer(tools, params.tripId, userId)
+  if (!check.ok) return fail(check.error, check.code)
+  const name = parseText(params.name, 'Trip name', 120)
+  if (!name.ok) return fail(name.error, 'bad_request')
+  const destination = parseText(params.destination, 'Destination', 200)
+  if (!destination.ok) return fail(destination.error, 'bad_request')
+  const res = await tools.update('trips', check.membership.tripId, { name: name.value, destination: destination.value })
+  if (!res.success) return fail('Could not save the trip.', 'save_failed')
+  return ok({ saved: true })
 }
 
 const rotateInviteCode: Handler = async ({ userId, params, tools }) => {
@@ -209,6 +227,8 @@ const setMyBudgets: Handler = async ({ userId, params, tools }) => {
     else if (shouldShow && shown && shown.data.amount !== amount) await tools.update('public_budgets', shown.recordId, { amount })
     else if (!shouldShow && shown) await tools.remove('public_budgets', shown.recordId)
   }
+  // Housing fit counts depend on everyone's housing budget (counts only).
+  await refreshHousingFit(tools, tripId)
   return ok({ saved: true })
 }
 
@@ -249,6 +269,7 @@ export const coreActions: Record<string, Handler> = {
   joinTrip,
   leaveTrip,
   rotateInviteCode,
+  updateTrip,
   setMyBudgets,
   updateMyProfile,
 }
