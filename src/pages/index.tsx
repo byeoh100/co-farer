@@ -11,7 +11,7 @@ import { seo } from '../seo'
 const POINTS = [
   { title: 'Pick dates together', body: 'Everyone marks when they’re free; the overlap shows the best days.' },
   { title: 'Vote on where to stay', body: 'Suggestions, research and live voting, checked against the group’s budget.' },
-  { title: 'Budgets stay private', body: 'Each budget is yours alone unless you switch it to public.' },
+  { title: 'Budgets count without the awkward conversation', body: 'Everyone’s budget shapes the plan. Share yours with the trip, or keep the numbers to yourself; they count either way.' },
 ]
 
 export default function Landing() {

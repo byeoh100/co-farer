@@ -79,10 +79,10 @@ test('Housing: wait, suggest, paste, remove, vote live, fit, lock, unlock clears
   await expect(a.getByText('Housing opens once the dates are locked.').first()).toBeVisible()
   expect(await action(a, 'suggestOptions', h)).toMatchObject({ success: false, code: 'waiting_for_dates' })
 
-  // Budgets: A 100, B 150, C 30 (housing). Lock dates → housing opens.
+  // Budgets: A 100, B 150, C 30 (housing). C keeps theirs private: it still counts in fit.
   expect(await action(a, 'setMyBudgets', { tripId, housing: 100 })).toMatchObject({ success: true })
   expect(await action(b, 'setMyBudgets', { tripId, housing: 150 })).toMatchObject({ success: true })
-  expect(await action(c, 'setMyBudgets', { tripId, housing: 30 })).toMatchObject({ success: true })
+  expect(await action(c, 'setMyBudgets', { tripId, housing: 30, isPublic: false })).toMatchObject({ success: true })
   expect(await action(a, 'lockDates', { tripId, start: nextMonthDay(19), end: nextMonthDay(21) })).toMatchObject({ success: true })
 
   // Open the section: it expands and the URL says so; Escape closes it.
@@ -111,9 +111,16 @@ test('Housing: wait, suggest, paste, remove, vote live, fit, lock, unlock clears
   await expect(a.locator('[data-option-title="Test stay 1"]')).not.toHaveAttribute('data-new', 'true')
   await expect(a.locator('[data-testid="option-card"][data-new="true"]')).toHaveCount(4)
 
-  // Fit (3 budgets set): "Test stay 1" is $40/person → over for C (30): 1 of 3.
+  // Fit: "Test stay 1" is $40/person → over for C (30, private): 1 of 3.
   const stay1 = a.locator('[data-option-title="Test stay 1"]')
   await expect(stay1.getByTestId('option-fit')).toHaveText('Over the housing budget for 1 of 3')
+  // C's private number never reaches A: A sees B's public $150, nothing for C.
+  await a.keyboard.press('Escape')
+  await a.getByTestId('members-stack').click()
+  await expect(a.getByTestId('member-public-budgets')).toHaveCount(2, { timeout: 15_000 }) // A and B
+  await expect(a.getByTestId('members-list')).not.toContainText('$30')
+  await a.keyboard.press('Escape')
+  await a.getByTestId('section-housing').click()
   // B lowers their housing budget to 20 → 2 of 3, live.
   expect(await action(b, 'setMyBudgets', { tripId, housing: 20 })).toMatchObject({ success: true })
   await expect(stay1.getByTestId('option-fit')).toHaveText('Over the housing budget for 2 of 3', { timeout: 15_000 })

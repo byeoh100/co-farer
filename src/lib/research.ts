@@ -44,17 +44,19 @@ export interface HousingContext {
   destination: string
   dates: DateRange
   groupSize: number
-  /** Rounded group band, or null with too few budgets (never one person's number). */
+  /** The average of all set housing budgets, or null if nobody has set one. */
   priceBand: PriceBand | null
 }
 
-/** "$150–$200 per person ($450–$600 total for 3)": the band and the whole group's total. */
+const money = (x: number) =>
+  `$${x.toLocaleString('en-US', Number.isInteger(x) ? {} : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+/** "$150 per person ($450 total for 3)": the average budget, scaled to the group. */
 export function bandText(ctx: HousingContext): string {
   const b = ctx.priceBand
   if (!b) return ''
   const n = Math.max(1, ctx.groupSize)
-  const money = (x: number) => `$${x.toLocaleString('en-US')}`
-  return `${money(b.low)}–${money(b.high)} per person (${money(b.low * n)}–${money(b.high * n)} total for ${n})`
+  return `${money(b.perPerson)} per person (${money(Math.round(b.perPerson * n * 100) / 100)} total for ${n})`
 }
 
 export function nights(dates: DateRange): number {
@@ -164,7 +166,7 @@ function tripLine(ctx: HousingContext): string {
 }
 
 export function suggestUserPrompt(ctx: HousingContext, count: number, results: SearchResult[]): string {
-  const band = ctx.priceBand ? ` The group's rough budget for the stay is ${bandText(ctx)}.` : ''
+  const band = ctx.priceBand ? ` The group's average budget for the stay is about ${bandText(ctx)}.` : ''
   return `${tripLine(ctx)}${band}\nSuggest the ${count} best distinct places to stay for this group from the search results below.\n\n<search_results>\n${resultsBlock(results)}\n</search_results>`
 }
 

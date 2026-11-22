@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   INVITE_CODE_LENGTH, avatarInitial, generateInviteCode, isInviteCodeShape,
-  parseBudgetInput, parseImageUrl, parseText, readPublicCategories, toStoredImagePath,
+  parseBudgetInput, parseImageUrl, parseText, readIsPublic, readPublicCategories, toStoredImagePath,
 } from './core-input'
 
 describe('invite codes', () => {
@@ -40,22 +40,37 @@ describe('parseText', () => {
 })
 
 describe('parseBudgetInput', () => {
-  it('accepts whole dollars, blanks and known public categories', () => {
-    const r = parseBudgetInput({ housing: 150, gas: '40', food: '', publicCategories: ['gas', 'gas'] })
-    expect(r).toEqual({ ok: true, value: { housing: 150, gas: 40, food: null, activities: null, publicCategories: ['gas'] } })
+  it('accepts whole dollars, blanks and one public/private switch', () => {
+    const r = parseBudgetInput({ housing: 150, gas: '40', food: '', isPublic: false })
+    expect(r).toEqual({ ok: true, value: { housing: 150, gas: 40, food: null, activities: null, isPublic: false } })
+    // Left out: "keep the current setting" (new budgets are public).
+    expect(parseBudgetInput({ housing: 1 })).toMatchObject({ ok: true, value: { isPublic: null } })
   })
   it('rejects negatives, decimals, huge numbers and text', () => {
     for (const bad of [-1, 10.5, 100_001, 'abc', true]) {
       expect(parseBudgetInput({ housing: bad }).ok).toBe(false)
     }
   })
-  it('rejects unknown categories', () => {
-    expect(parseBudgetInput({ publicCategories: ['rent'] }).ok).toBe(false)
-    expect(parseBudgetInput({ publicCategories: 'gas' }).ok).toBe(false)
+  it('rejects a switch that isn’t true or false', () => {
+    expect(parseBudgetInput({ isPublic: 'yes' }).ok).toBe(false)
+    expect(parseBudgetInput({ isPublic: 1 }).ok).toBe(false)
   })
 })
 
-describe('readPublicCategories', () => {
+describe('readIsPublic (existing data)', () => {
+  it('uses the new switch when a row has it', () => {
+    expect(readIsPublic({ isPublic: 1 })).toBe(true)
+    expect(readIsPublic({ isPublic: 0, publicCategories: '["gas"]' })).toBe(false)
+    expect(readIsPublic({ isPublic: true })).toBe(true)
+  })
+  it('older rows: public if any category was public, otherwise private', () => {
+    expect(readIsPublic({ publicCategories: '["gas"]' })).toBe(true)
+    expect(readIsPublic({ publicCategories: '[]' })).toBe(false)
+    expect(readIsPublic({})).toBe(false)
+  })
+})
+
+describe('readPublicCategories (legacy)', () => {
   it('reads JSON or arrays and drops junk', () => {
     expect(readPublicCategories('["gas","nope"]')).toEqual(['gas'])
     expect(readPublicCategories(['food'])).toEqual(['food'])

@@ -121,9 +121,8 @@ the whole spec and ask for the app.
 
 - **Budget fit** (`src/lib/budget-fit.ts`, done):
   - Fit is counted per category, against that category's budget.
-  - In a trip of 3+ members, fewer than 3 responses → `tooFewResponses`,
-    and the UI shows a softer message. Trips of 1–2 members need only one
-    budget (`minResponses`; the human's decision in Module 3).
+  - Counts always show (Planned Changes Spec, Change 1 removed the
+    3-response minimum). Every set budget counts, public or private.
   - "Price not found" is left out of the fit check.
   - The person's own total adds up **essentials only (housing + gas)**.
   - Food and activity prices are shown for reference only and never checked.
@@ -228,6 +227,20 @@ when you start building it.
     and no `public_budgets` row for B.
   - B makes gas public. A sees B's gas number next to B's name.
   - A non-member calling `setMyBudgets` with A's `tripId` gets `not_a_member`.
+
+### Planned Changes Spec, Change 1: budgets public by default (2026-11-22)
+
+- One switch for the whole budget (`budgets.isPublic`), public by default.
+  Public: every set category shows next to the person's name
+  (`public_budgets`). Private: nothing shows, but the numbers still count.
+- Every set budget counts in fit and in the AI's search price; no 3-response
+  minimum and no $50 rounding. `groupPriceBand` is the plain average,
+  scaled to the group by the search.
+- Existing data: rows without `isPublic` become public if any category was
+  public under the old switches, else private (`readIsPublic`; the hourly
+  `budget-visibility` cron task writes it). The old `publicCategories`
+  column stays only for that move.
+- `budgets` stays owner-only; server actions and membership checks unchanged.
 
 ### 4.2 Dates
 
@@ -558,8 +571,8 @@ when you start building it.
 - **Privacy tests, which must always pass:**
   - A can't read B's private budget through `budgets`, `public_budgets`,
     `options.fit`, or a non-member action call.
-  - The price band is null with just one budget in a trip of 3+ members
-    (trips of 1–2 members use any budgets set).
+  - A private budget is never readable by another member (`budgets` is
+    owner-only), yet still counts in fit (tests/housing.spec.ts).
 - **Real-world testing:** first, mock trips of 2 to 3 people, to test joining,
   dates and voting. Then the 5 to 6 person Cachuma Lake group as the final
   test. Log what broke for the writeup.
@@ -606,3 +619,4 @@ is Phase 1 of `docs/BUILD_GUIDE.md`.
 | Module 5: Notes (2026-11-21) | Built `notes` and the actions `addNote`, `editNote` and `deleteNote` (your own notes only, guarded by `requireMember`) and `removeNote` (organizer only, any note). `src/lib/notes.ts` checks the text (trimmed, line breaks kept, 280 characters). The Notes section is a live board of sticky notes, newest first, each with the author's circle, name, time and "edited"; you edit or delete your own, and the organizer removes any after a confirm. Notes from people who left stay, grayed out and marked "has left". The overview card shows the count and the latest note (mobile) or the latest 3 (desktop). Your decisions: 280 characters, newest first, 200 notes per trip, open right away. The Core test now checks the disabled-section notice on Additional, since Notes is open. Nothing broke. Tests: 92 unit, 23 e2e passing. Deployed. | Agreed to the suggested note length, order, limit, and having Notes open right away. Tested the notes board and approved shipping. |
 | Modules 6–7: Additional (Activities and Food) (2026-11-21) | Built both lists on the shared engine in one Additional section: Activities and Food side by side on desktop, stacked on mobile, each with Suggest 10, Search for more, paste a link or name, live votes ranked by votes, remove (adder or organizer), the "New" outline and photos; never locked, no deadline. Added `food_prefs` (team-read) and `setMyFoodPrefs`, with a Food preferences section on My settings (dietary chips, cuisines liked and avoided). Research generalized: per-list search plans and prompts (`src/lib/research-additional.ts`), per-person prices (0 = free), and an `accommodates` list for food read only from known tags. The warning triangle (`src/lib/food.ts`, pure, unit-tested) lists every need a place isn't confirmed to accommodate; places stay on the list. Your decisions: build Activities and Food together as one module; open right away; typed prices per person; TripAdvisor, AllTrails and Viator first for activities, TripAdvisor and Yelp for food, then the places' own websites; unknown dietary info counts as "may not suit"; unlocking the dates leaves these lists alone. Leaving removes your food preferences. The Core test no longer checks a "not ready" section (none are left). Nothing broke. Tests: 105 unit, 24 e2e passing. Deployed. | Asked for Activities and Food to be built as one "Additional" module, kept as separate lists. Picked the specific sites to search first, per-person prices, and the warning when a place's dietary info is unknown. Decided the lists open right away and stay when the dates are unlocked. Tested the Additional section and approved shipping. |
 | Stretch: gas, best window, cheaper model (2026-11-21) | Gas: the organizer sets one-way miles and the gas price (default $4.75/gal) in Travel with `setTripGas`; drivers add mpg (default 25). Each car shows the per-person share (`2 × miles ÷ mpg × price ÷ people`, driver included), which becomes that person's gas estimate on My settings and in the essentials header, flagged when over their gas budget. Best window: `bestWindows` in `src/lib/dates.ts` ranks non-overlapping stretches of N nights by people free every day, then person-days; the organizer's Final dates mode marks the top 3 on the calendar and tapping one selects it to lock. Model: research switched from Claude Opus 5.5 to Claude Haiku 5.5 (about 1/40 the token price, standard pricing on DeepSpace's free tier). What broke: a gas price like $4.89 was refused by a floating-point "to the cent" check; the unit test caught it. Tests: 109 unit, 26 e2e passing. Deployed. | Asked for gas estimates and the best-window helper, then for a cheaper AI model. Tested and approved deploying. |
+| Planned Changes Spec, Change 1: budgets public by default (2026-11-22) | One "Share my budget with the trip" switch (`budgets.isPublic`, public by default) replaces the per-category switches; while public, every set category shows next to your name. Every set budget counts in fit and in the AI's search price, public or private: removed the 3-response minimum (`tooFewResponses`, `SMALL_GROUP_THRESHOLD`) and the $50 rounding; the price is the plain average, scaled to the group. Existing rows: public if any category was public, else private (`readIsPublic`, written by an hourly `budget-visibility` cron task; untested on real old rows since local data had none). Landing copy changed to "Budgets count without the awkward conversation". `budgets` stays owner-only. Privacy tests: a private budget counts in fit and never shows to another member. Spec, build guide and plan updated. Tests: 106 unit, 26 e2e passing. Deployed. | Wrote the Planned Changes Spec: budgets public by default with one switch and no hiding logic, since trip groups are usually close friends. Approved shipping. |

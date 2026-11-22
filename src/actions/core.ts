@@ -5,15 +5,16 @@
  *  - Actions run with record permissions OFF, so each trip action starts with
  *    requireMember / requireOrganizer. The caller is always ctx.userId.
  *  - Private budget figures never leave this file except back to their owner,
- *    and only the public projection (`public_budgets`) is written for others.
+ *    and only the public projection (`public_budgets`, written while a budget
+ *    is public) is visible to others. Private budgets still count in fit.
  */
 
 import { mintUlid } from 'deepspace/worker'
 import type { ActionHandler, ActionResult, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
-import { BUDGET_CATEGORIES } from '../schemas/trip-schemas'
+import { BUDGET_CATEGORIES, type BudgetCategory } from '../schemas/trip-schemas'
 import {
-  generateInviteCode, isInviteCodeShape, parseBudgetInput, parseImageUrl, parseText,
+  generateInviteCode, isInviteCodeShape, parseBudgetInput, parseImageUrl, parseText, readIsPublic,
 } from '../lib/core-input'
 import { requireMember, requireOrganizer } from './trip-access'
 import { runLeaveCleanup } from './leave-cleanup'
@@ -193,9 +194,53 @@ const rotateInviteCode: Handler = async ({ userId, params, tools }) => {
   return ok({ inviteCode })
 }
 
+type Amounts = Record<BudgetCategory, number | null>
+
 /**
- * Saves the caller's private budgets and syncs the public projection: a
- * `public_budgets` row exists exactly for categories that are public AND set.
+ * Keeps `public_budgets` in step with one person's budget: while public, a
+ * row for every category they set; while private, none.
+ */
+async function syncPublicBudgets(tools: ActionTools, tripId: string, userId: string, amounts: Amounts, isPublic: boolean) {
+  const pub = await tools.query<{ category: string; amount: number }>('public_budgets', { where: { tripId, userId }, limit: 10 })
+  if (!pub.success) return false
+  const byCategory = new Map(pub.data.records.map((r) => [r.data.category, r]))
+  for (const category of BUDGET_CATEGORIES) {
+    const amount = amounts[category]
+    const shouldShow = isPublic && amount != null
+    const shown = byCategory.get(category)
+    if (shouldShow && !shown) await tools.create('public_budgets', { tripId, userId, category, amount })
+    else if (shouldShow && shown && shown.data.amount !== amount) await tools.update('public_budgets', shown.recordId, { amount })
+    else if (!shouldShow && shown) await tools.remove('public_budgets', shown.recordId)
+  }
+  return true
+}
+
+/**
+ * One-time move to the single switch (Planned Changes Spec, Change 1): every
+ * budget row without `isPublic` gets it from its old per-category switches
+ * (any public → public), and its public rows are synced. Idempotent; run by
+ * the cron task and safe to run again.
+ */
+export async function migrateBudgetVisibility(tools: ActionTools): Promise<number> {
+  const res = await tools.query<Record<string, unknown>>('budgets', { limit: 2000 })
+  if (!res.success) return 0
+  let migrated = 0
+  for (const r of res.data.records) {
+    const d = r.data
+    if (typeof d.isPublic === 'number' || typeof d.isPublic === 'boolean') continue
+    const isPublic = readIsPublic(d)
+    await tools.update('budgets', r.recordId, { isPublic: isPublic ? 1 : 0 })
+    const num = (v: unknown) => (typeof v === 'number' ? v : null)
+    const amounts = { housing: num(d.housing), gas: num(d.gas), food: num(d.food), activities: num(d.activities) }
+    await syncPublicBudgets(tools, String(d.tripId), String(d.userId), amounts, isPublic)
+    migrated++
+  }
+  return migrated
+}
+
+/**
+ * Saves the caller's budget and syncs the public projection. One switch for
+ * the whole budget; new budgets are public (Planned Changes Spec, Change 1).
  */
 const setMyBudgets: Handler = async ({ userId, params, tools }) => {
   const check = await requireMember(tools, params.tripId, userId)
@@ -205,36 +250,27 @@ const setMyBudgets: Handler = async ({ userId, params, tools }) => {
   if (!parsed.ok) return fail(parsed.error, 'bad_request')
   const input = parsed.value
 
+  const existing = await tools.query<Record<string, unknown>>('budgets', { where: { tripId, userId }, limit: 1 })
+  if (!existing.success) return fail('Could not save your budgets.', 'save_failed')
+  const current = existing.data.records[0]
+  // Not given: keep the current setting (an older row migrates here); new budgets are public.
+  const isPublic = input.isPublic ?? (current ? readIsPublic(current.data) : true)
   const row = {
     housing: input.housing,
     gas: input.gas,
     food: input.food,
     activities: input.activities,
-    publicCategories: JSON.stringify(input.publicCategories),
+    isPublic: isPublic ? 1 : 0,
   }
-  const existing = await tools.query('budgets', { where: { tripId, userId }, limit: 1 })
-  if (!existing.success) return fail('Could not save your budgets.', 'save_failed')
-  const current = existing.data.records[0]
   const saved = current
     ? await tools.update('budgets', current.recordId, row)
     : await tools.create('budgets', { tripId, userId, ...row })
   if (!saved.success) return fail('Could not save your budgets.', 'save_failed')
 
-  const pub = await tools.query<{ category: string; amount: number }>('public_budgets', {
-    where: { tripId, userId },
-    limit: 10,
-  })
-  if (!pub.success) return fail('Saved, but could not update public budgets.', 'sync_failed')
-  const byCategory = new Map(pub.data.records.map((r) => [r.data.category, r]))
-  for (const category of BUDGET_CATEGORIES) {
-    const amount = input[category]
-    const shouldShow = input.publicCategories.includes(category) && amount != null
-    const shown = byCategory.get(category)
-    if (shouldShow && !shown) await tools.create('public_budgets', { tripId, userId, category, amount })
-    else if (shouldShow && shown && shown.data.amount !== amount) await tools.update('public_budgets', shown.recordId, { amount })
-    else if (!shouldShow && shown) await tools.remove('public_budgets', shown.recordId)
+  if (!(await syncPublicBudgets(tools, tripId, userId, input, isPublic))) {
+    return fail('Saved, but could not update the shared budget.', 'sync_failed')
   }
-  // Housing fit counts depend on everyone's housing budget (counts only).
+  // Housing fit counts use everyone's housing budget, public or private (counts only).
   await refreshHousingFit(tools, tripId)
   return ok({ saved: true })
 }

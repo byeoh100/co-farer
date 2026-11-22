@@ -24,7 +24,7 @@ const LABELS: Record<BudgetCategory, { title: string; hint: string }> = {
   activities: { title: 'Activities', hint: 'For reference; not counted in your total' },
 }
 
-type Draft = Record<BudgetCategory, string> & { publicCategories: BudgetCategory[] }
+type Draft = Record<BudgetCategory, string> & { isPublic: boolean }
 
 export default function TripSettingsPage() {
   const { trip, me, members } = useTripContext()
@@ -50,7 +50,8 @@ export default function TripSettingsPage() {
       gas: budget?.gas?.toString() ?? '',
       food: budget?.food?.toString() ?? '',
       activities: budget?.activities?.toString() ?? '',
-      publicCategories: budget?.publicCategories ?? [],
+      // New budgets are public (Planned Changes Spec, Change 1).
+      isPublic: budget?.isPublic ?? true,
     })
   }, [budget, status, draft])
 
@@ -70,7 +71,7 @@ export default function TripSettingsPage() {
 
   const save = async () => {
     setSaving(true)
-    const res = await callAction('setMyBudgets', { tripId: trip.id, ...asNumbers, publicCategories: draft.publicCategories })
+    const res = await callAction('setMyBudgets', { tripId: trip.id, ...asNumbers, isPublic: draft.isPublic })
     setSaving(false)
     if (!res.success) return error('Could not save', res.error)
     success('Budgets saved')
@@ -87,12 +88,6 @@ export default function TripSettingsPage() {
     navigate('/trips')
   }
 
-  const togglePublic = (c: BudgetCategory, on: boolean) =>
-    setDraft({
-      ...draft,
-      publicCategories: on ? [...draft.publicCategories, c] : draft.publicCategories.filter((x) => x !== c),
-    })
-
   return (
     <div className="mx-auto w-full max-w-xl px-4 py-6">
       <title>{`My settings · ${trip.name}`}</title>
@@ -106,15 +101,29 @@ export default function TripSettingsPage() {
         {welcome ? 'Set your budgets first. You can change them any time.' : `Your budgets for ${trip.name}.`}
       </p>
 
-      <p className="mt-4 flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm text-accent-foreground" data-testid="privacy-note">
-        <Lock className="h-4 w-4 shrink-0" aria-hidden />
-        Only you can see private budgets. They count toward anonymous totals only.
-      </p>
+      <div className="mt-4 rounded-lg bg-accent px-3 py-2.5 text-sm text-accent-foreground" data-testid="privacy-note">
+        <label className="flex items-center justify-between gap-3">
+          <span className="flex items-center gap-2 font-medium">
+            {draft.isPublic ? <Users className="h-4 w-4 shrink-0" aria-hidden /> : <Lock className="h-4 w-4 shrink-0" aria-hidden />}
+            Share my budget with the trip
+          </span>
+          <Switch
+            checked={draft.isPublic}
+            onCheckedChange={(on) => setDraft({ ...draft, isPublic: on })}
+            aria-label="Share my budget with the trip"
+            data-testid="budget-public"
+          />
+        </label>
+        <p className="mt-1 text-xs opacity-80">
+          {draft.isPublic
+            ? 'Everyone in the trip sees your budgets next to your name.'
+            : 'Nobody else sees your numbers, but they still count toward the group’s fit and searches.'}
+        </p>
+      </div>
 
       <section className="mt-5 space-y-3" aria-label="Budgets">
         {BUDGET_CATEGORIES.map((c) => {
           const line = summary.lines.find((l) => l.category === c)!
-          const isPublic = draft.publicCategories.includes(c)
           return (
             <div key={c} className="rounded-xl border border-border bg-card p-4" data-testid={`budget-${c}`}>
               <div className="flex items-start justify-between gap-3">
@@ -124,16 +133,6 @@ export default function TripSettingsPage() {
                   </Label>
                   <p className="text-xs text-muted-foreground">{LABELS[c].hint}</p>
                 </div>
-                <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {isPublic ? <Users className="h-3.5 w-3.5" aria-hidden /> : <Lock className="h-3.5 w-3.5" aria-hidden />}
-                  <span className="w-12">{isPublic ? 'Public' : 'Private'}</span>
-                  <Switch
-                    checked={isPublic}
-                    onCheckedChange={(on) => togglePublic(c, on)}
-                    aria-label={`Show my ${LABELS[c].title.toLowerCase()} budget to the group`}
-                    data-testid={`budget-${c}-public`}
-                  />
-                </label>
               </div>
               <div className="mt-3 flex items-center gap-3">
                 <div className="relative w-36">
@@ -153,9 +152,6 @@ export default function TripSettingsPage() {
                   {line.over && <span className="ml-1 font-medium text-destructive">· over budget</span>}
                 </p>
               </div>
-              {isPublic && line.budget == null && (
-                <p className="mt-2 text-xs text-muted-foreground">Set an amount to share it.</p>
-              )}
             </div>
           )
         })}

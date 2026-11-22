@@ -43,15 +43,16 @@ export function parseText(raw: unknown, label: string, max: number, required = t
 
 export const MAX_BUDGET = 100_000
 
-export type BudgetInput = Record<BudgetCategory, number | null> & { publicCategories: BudgetCategory[] }
+/** `isPublic` null = not given (keep the current setting; new budgets are public). */
+export type BudgetInput = Record<BudgetCategory, number | null> & { isPublic: boolean | null }
 
 /**
  * Validates setMyBudgets params. Each category is blank (null) or a whole
- * number of dollars from 0 to MAX_BUDGET. Public categories must be known
- * categories; a public category with no amount is simply not published.
+ * number of dollars from 0 to MAX_BUDGET. `isPublic` is one switch for the
+ * whole budget (true, false, or left out).
  */
 export function parseBudgetInput(params: Record<string, unknown>): Parsed<BudgetInput> {
-  const out = { publicCategories: [] as BudgetCategory[] } as BudgetInput
+  const out = { isPublic: null } as BudgetInput
   for (const category of BUDGET_CATEGORIES) {
     const raw = params[category]
     if (raw == null || raw === '') {
@@ -64,16 +65,24 @@ export function parseBudgetInput(params: Record<string, unknown>): Parsed<Budget
     }
     out[category] = n
   }
-  const pub = params.publicCategories ?? []
-  if (!Array.isArray(pub)) return { ok: false, error: 'publicCategories must be a list.' }
-  for (const c of pub) {
-    if (!(BUDGET_CATEGORIES as readonly unknown[]).includes(c)) return { ok: false, error: `Unknown budget category: ${String(c)}.` }
-    if (!out.publicCategories.includes(c as BudgetCategory)) out.publicCategories.push(c as BudgetCategory)
-  }
+  if (params.isPublic != null && typeof params.isPublic !== 'boolean') return { ok: false, error: 'isPublic must be true or false.' }
+  out.isPublic = typeof params.isPublic === 'boolean' ? params.isPublic : null
   return { ok: true, value: out }
 }
 
-/** Stored as a JSON array in the multiselect column. Unknown values are dropped. */
+/**
+ * Is this stored budget row public? Rows saved since Change 1 carry
+ * `isPublic`. Older rows (no `isPublic`) are public if any category was
+ * public under the old switches, so nobody is shown without choosing it.
+ */
+export function readIsPublic(data: Record<string, unknown>): boolean {
+  const v = data.isPublic
+  if (typeof v === 'boolean') return v
+  if (typeof v === 'number') return v !== 0
+  return readPublicCategories(data.publicCategories).length > 0
+}
+
+/** Legacy: the old per-category switches, stored as a JSON array. Unknown values are dropped. */
 export function readPublicCategories(raw: unknown): BudgetCategory[] {
   let list: unknown = raw
   if (typeof raw === 'string') {

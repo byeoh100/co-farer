@@ -124,7 +124,7 @@ export function TripOverview({ trip, members, me }: { trip: Trip; members: Membe
               <Link to={`/trip/${trip.id}/settings`} className="text-primary underline-offset-4 hover:underline">
                 Set your budgets
               </Link>{' '}
-              (private unless you choose to share).
+              (shared with the trip unless you switch it off).
             </li>
             {isOrganizer && <li>Invite your group: tap the member circles above for the invite link.</li>}
           </ul>

@@ -173,7 +173,7 @@ async function housingContext(tools: ActionTools, tripId: string): Promise<Housi
     destination: t.destination,
     dates: { start: t.datesStart, end: t.datesEnd },
     groupSize: Math.max(1, members.length),
-    priceBand: groupPriceBand(await housingBudgets(tools, tripId, members), members.length),
+    priceBand: groupPriceBand(await housingBudgets(tools, tripId, members)),
   }
 }
 

@@ -11,8 +11,10 @@
  *    so members see only rows of trips they belong to.
  *  - `budgets` holds every budget figure and is owner-only (`read: 'own'`).
  *    Nobody else — other members, the organizer, the app admin — can read it.
- *  - `public_budgets` is a projection: one row per category a person has
- *    switched to public. Server actions write it; members can read it.
+ *  - `public_budgets` is a projection: while a person's budget is public
+ *    (`isPublic`, the default), one row per category they set. Server
+ *    actions write it; members can read it. Private budgets still count in
+ *    fit and the search price, server-side only.
  *  - Clients never write these collections directly. `create` has no
  *    membership check, so a direct write could inject rows into another
  *    trip. All writes go through server actions in src/actions/.
@@ -101,7 +103,12 @@ export const budgetsSchema: CollectionSchema = {
     { name: 'gas', storage: 'number', interpretation: { kind: 'currency', symbol: '$', decimals: 0 } },
     { name: 'food', storage: 'number', interpretation: { kind: 'currency', symbol: '$', decimals: 0 } },
     { name: 'activities', storage: 'number', interpretation: { kind: 'currency', symbol: '$', decimals: 0 } },
-    // Categories this person chose to make public. Private by default.
+    // One switch for the whole budget (Planned Changes Spec, Change 1). New
+    // budgets are public. Null = an older row, not yet migrated (see
+    // `readIsPublic` in src/lib/core-input.ts).
+    { name: 'isPublic', storage: 'number', interpretation: { kind: 'boolean' } },
+    // Legacy: the old per-category switches. Read only to migrate older rows
+    // (anyone with one public category becomes public); no longer written.
     {
       name: 'publicCategories',
       storage: 'text',

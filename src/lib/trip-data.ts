@@ -13,7 +13,7 @@ import { buildBoard, gasPerPerson, type TravelEntry } from './travel'
 import { readDietary, type DietaryTag } from './food'
 import { callAction } from './actions-client'
 import type { CategoryFit } from './budget-fit'
-import { readPublicCategories } from './core-input'
+import { readIsPublic } from './core-input'
 
 export interface Trip {
   id: string
@@ -117,7 +117,7 @@ export function useMembers(tripId: string | undefined, { includeLeft = false } =
   return { members, status }
 }
 
-export type MyBudget = Record<BudgetCategory, number | null> & { publicCategories: BudgetCategory[] }
+export type MyBudget = Record<BudgetCategory, number | null> & { isPublic: boolean }
 
 /** The caller's own private budget row. Only its owner can ever read it ('own' rule). */
 export function useMyBudget(tripId: string | undefined, userId: string | undefined) {
@@ -134,13 +134,13 @@ export function useMyBudget(tripId: string | undefined, userId: string | undefin
       gas: num(r.data.gas),
       food: num(r.data.food),
       activities: num(r.data.activities),
-      publicCategories: readPublicCategories(r.data.publicCategories),
+      isPublic: readIsPublic(r.data),
     }
   }, [records])
   return { budget, status }
 }
 
-/** Budgets people chose to show the group, keyed by userId. */
+/** Budgets shown to the group (people whose budget is public), keyed by userId. */
 export function usePublicBudgets(tripId: string | undefined) {
   const { records } = useQuery<{ userId: string; category: BudgetCategory; amount: number }>('public_budgets', {
     where: { tripId: tripId ?? '' },

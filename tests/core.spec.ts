@@ -3,8 +3,10 @@
  *
  *  1. A creates a trip, B joins by link and lands on settings, and the trip
  *     shows for B without a manual reload (join-refresh check, PLAN.md §2).
- *  2. B sets a private housing budget of $150: A sees no B budget anywhere.
- *  3. B makes gas public: A sees B's gas number next to B's name.
+ *  2. B sets a housing budget of $150: public by default, so A sees it next to B's name.
+ *  3. B switches their budget to private: A sees no B budget anywhere.
+ *  4. B switches it back: all of B's set budgets show again.
+ *  (Planned Changes Spec, Change 1: one switch, public by default.)
  *  4. A non-member calling setMyBudgets with A's tripId gets not_a_member.
  * Plus: the trip page frame (disabled sections + notice), leaving, and that
  * a non-member can't join the trip's presence room.
@@ -87,36 +89,44 @@ test('Core: create, join, private and public budgets, non-member refused', async
   const again = await action(b.page, 'joinTrip', { inviteCode: new URL(inviteLink).pathname.split('/')[2] })
   expect(again).toMatchObject({ success: true })
 
-  // ── 2. B sets a private housing budget of $150 ──
+  // ── 2. B sets a housing budget of $150: public by default ──
+  await expect(b.page.getByTestId('budget-public')).toHaveAttribute('aria-checked', 'true')
   await b.page.locator('#budget-housing-input').fill('150')
   await b.page.getByTestId('save-budgets').click()
   await b.page.waitForURL(new RegExp(`/trip/${tripId}$`), { timeout: 20_000 })
   await expect(b.page.getByTestId('my-essentials')).toContainText('Budget $150 · no estimates yet')
 
-  // A sees B as a member, with no budget next to B's name.
   await a.page.reload()
   await a.page.getByTestId('members-stack').click({ timeout: 15_000 })
-  const memberRows = a.page.getByTestId('member-row')
-  await expect(memberRows).toHaveCount(2, { timeout: 15_000 })
-  await expect(a.page.getByTestId('member-public-budgets')).toHaveCount(0)
-  await expect(a.page.getByTestId('members-list')).not.toContainText('150')
+  await expect(a.page.getByTestId('member-row')).toHaveCount(2, { timeout: 15_000 })
+  await expect(a.page.getByTestId('member-public-budgets')).toHaveText('Housing $150', { timeout: 15_000 })
   await a.page.keyboard.press('Escape')
 
-  // Data level: `budgets` is read: 'own' for every role, pinned by src/schemas.test.ts.
-
-  // ── 3. B makes gas public ──
+  // ── 3. B switches to private (and adds gas): A sees no B budget anywhere ──
   await b.page.goto(`/trip/${tripId}/settings`)
   await b.page.locator('#budget-gas-input').fill('40')
-  await b.page.getByTestId('budget-gas-public').click()
+  await b.page.getByTestId('budget-public').click()
   await b.page.getByTestId('save-budgets').click()
   await expect(b.page.getByText('Budgets saved')).toBeVisible({ timeout: 15_000 })
 
   await a.page.getByTestId('members-stack').click()
-  await expect(a.page.getByTestId('member-public-budgets')).toHaveText('Gas $40', { timeout: 15_000 })
+  await expect(a.page.getByTestId('member-public-budgets')).toHaveCount(0, { timeout: 15_000 })
   await expect(a.page.getByTestId('members-list')).not.toContainText('150')
+  await expect(a.page.getByTestId('members-list')).not.toContainText('40')
+  await a.page.keyboard.press('Escape')
+  // Data level: `budgets` is read: 'own' for every role, pinned by src/schemas.test.ts.
+  // Private budgets still count in fit: tests/housing.spec.ts.
+
+  // ── 4. B switches back on: every set budget shows ──
+  await b.page.getByTestId('budget-public').click()
+  await b.page.getByTestId('save-budgets').click()
+  await expect(b.page.getByText('Budgets saved').first()).toBeVisible({ timeout: 15_000 })
+  await a.page.getByTestId('members-stack').click()
+  await expect(a.page.getByTestId('member-public-budgets')).toContainText('Housing $150', { timeout: 15_000 })
+  await expect(a.page.getByTestId('member-public-budgets')).toContainText('Gas $40')
   await a.page.keyboard.press('Escape')
 
-  // ── Leaving: B leaves; B's public gas disappears for A ──
+  // ── Leaving: B leaves; B's public budgets disappear for A ──
   await b.page.getByTestId('leave-trip').click()
   await b.page.getByRole('button', { name: 'Leave trip' }).last().click()
   await b.page.waitForURL(/\/trips$/, { timeout: 20_000 })

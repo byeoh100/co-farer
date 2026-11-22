@@ -4,7 +4,7 @@ import {
   perPersonShare, pickTop, readSearchResults, shapeOf, suggestUserPrompt,
 } from './research'
 
-const ctx = { destination: 'Cachuma Lake', dates: { start: '2027-03-19', end: '2027-03-21' }, groupSize: 6, priceBand: { low: 100, high: 200 } }
+const ctx = { destination: 'Cachuma Lake', dates: { start: '2027-03-19', end: '2027-03-21' }, groupSize: 6, priceBand: { perPerson: 150 } }
 const allowed = ['https://lake.example/yurts', 'https://camp.example/loop-b/']
 
 describe('queries and prompts', () => {
@@ -12,8 +12,9 @@ describe('queries and prompts', () => {
     expect(nights(ctx.dates)).toBe(2)
     expect(nights({ start: '2027-03-19', end: '2027-03-19' })).toBe(1)
   })
-  it('uses the rounded band only when there is one', () => {
-    expect(housingSearches(ctx)[0].query).toContain('$100–$200 per person ($600–$1,200 total for 6)')
+  it('uses the average budget, scaled to the group, only when there is one', () => {
+    expect(housingSearches(ctx)[0].query).toContain('$150 per person ($900 total for 6)')
+    expect(housingSearches({ ...ctx, priceBand: { perPerson: 112.5 } })[0].query).toContain('$112.50 per person ($675 total for 6)')
     expect(housingSearches({ ...ctx, priceBand: null }).map((p) => p.query).join(' ')).not.toContain('$')
   })
   it('searches the booking sites first, then everything else for the places’ own websites', () => {
