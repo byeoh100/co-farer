@@ -9,7 +9,7 @@
 import type { CollectionSchema } from 'deepspace/schema'
 import { sameForAllRoles, teamReadOnly } from './trip-schemas'
 
-export const ENGINE_MODULES = ['housing'] as const // Activities and Food join in Modules 6 and 7.
+export const ENGINE_MODULES = ['housing', 'activities', 'food'] as const
 export type EngineModule = (typeof ENGINE_MODULES)[number]
 
 export const boardsSchema: CollectionSchema = {
@@ -54,6 +54,9 @@ export const optionsSchema: CollectionSchema = {
     { name: 'imageUrl', storage: 'text', interpretation: 'plain', maxLength: 1000 },
     // JSON CategoryFit (counts only). Housing only.
     { name: 'fit', storage: 'text', interpretation: 'plain' },
+    // Food only. JSON list of dietary tags the sources say the place can
+    // accommodate (src/lib/food.ts). Null = not researched.
+    { name: 'accommodates', storage: 'text', interpretation: 'plain', maxLength: 500 },
   ],
   permissions: sameForAllRoles(teamReadOnly),
 }

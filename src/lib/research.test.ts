@@ -83,7 +83,7 @@ describe('parseResearchReply', () => {
   const reply = (options: unknown[]) => `Here you go:\n${JSON.stringify({ options })}\nThanks`
   it('keeps valid options and finds JSON inside other text', () => {
     const out = parseResearchReply(reply([{ title: 'Lakeview yurt', url: allowed[0], summary: 's', pros: ['p'], cons: [], sources: [allowed[0]], totalPrice: 287.6 }]), allowed)
-    expect(out).toEqual([{ title: 'Lakeview yurt', url: allowed[0], summary: 's', pros: ['p'], cons: [], sources: [allowed[0]], totalPrice: 288, imageUrl: null }])
+    expect(out).toEqual([{ title: 'Lakeview yurt', url: allowed[0], summary: 's', pros: ['p'], cons: [], sources: [allowed[0]], totalPrice: 288, pricePerPerson: null, accommodates: null, imageUrl: null }])
   })
   it('drops sources that were not in the search results, and options left with none', () => {
     const out = parseResearchReply(reply([
@@ -116,7 +116,7 @@ describe('photos and per-person share', () => {
     { title: 'Yurts', url: 'https://lake.example/yurts', text: '', image: 'https://img.example/yurt.jpg' },
     { title: 'Loop B', url: 'https://camp.example/loop-b/', text: '', image: null },
   ]
-  const opt = (url: string | null, sources: string[]) => ({ title: 'T', url, summary: '', pros: [], cons: [], sources, totalPrice: null, imageUrl: null })
+  const opt = (url: string | null, sources: string[]) => ({ title: 'T', url, summary: '', pros: [], cons: [], sources, totalPrice: null, pricePerPerson: null, accommodates: null, imageUrl: null })
   it('takes the photo from the matching search result, never from the model', () => {
     expect(attachImages([opt('https://lake.example/yurts/', [allowed[0]])], results)[0].imageUrl).toBe('https://img.example/yurt.jpg')
     expect(attachImages([opt(null, ['https://camp.example/loop-b'])], results)[0].imageUrl).toBeNull()

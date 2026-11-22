@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { lintSchemas } from 'deepspace/worker'
 import { schemas } from './schemas'
 
-const TRIP_COLLECTIONS = ['trips', 'team_members', 'budgets', 'public_budgets', 'availability', 'boards', 'options', 'votes', 'travel', 'seat_claims', 'pickup_notes', 'notes']
+const TRIP_COLLECTIONS = ['trips', 'team_members', 'budgets', 'public_budgets', 'availability', 'boards', 'options', 'votes', 'travel', 'seat_claims', 'pickup_notes', 'notes', 'food_prefs']
 
 describe('schemas', () => {
   it('pass the SDK schema linter (no silently unenforced rules)', () => {

@@ -13,11 +13,16 @@ import type { EngineModule } from '../schemas/engine-schemas'
 import { computeCategoryFit, groupPriceBand } from '../lib/budget-fit'
 import { RESEARCH_CALL_CAP, SUGGESTION_COUNT } from '../lib/limits'
 import {
-  housingSearches, lookupSearches, lookupUserPrompt, perPersonShare, pickTop, suggestUserPrompt,
+  RESEARCH_SYSTEM_PROMPT, housingSearches, lookupSearches, lookupUserPrompt, perPersonShare, pickTop, suggestUserPrompt,
   type HousingContext, type ResearchedOption,
 } from '../lib/research'
+import {
+  ACTIVITIES_SYSTEM_PROMPT, ACTIVITY_SITES, FOOD_SITES, FOOD_SYSTEM_PROMPT, activitiesSuggestPrompt, activitySearches,
+  additionalLookupPrompt, additionalLookupSearches, foodSearches, foodSuggestPrompt, type ActivitiesContext, type FoodContext,
+} from '../lib/research-additional'
+import { groupNeeds, readDietary } from '../lib/food'
 import { requireMember, requireOrganizer } from './trip-access'
-import { runResearch, shouldUseFakeAi } from './engine-ai'
+import { runResearch, shouldUseFakeAi, type ResearchJob } from './engine-ai'
 import { isLocalTestAccount } from './local-test'
 
 type Handler = ActionHandler<Env>
@@ -57,7 +62,7 @@ interface TripRow {
   researchCallsUsed?: number
 }
 
-const MODULES: readonly EngineModule[] = ['housing']
+const MODULES: readonly EngineModule[] = ['housing', 'activities', 'food']
 function isModule(m: unknown): m is EngineModule {
   return typeof m === 'string' && (MODULES as readonly string[]).includes(m)
 }
@@ -172,12 +177,74 @@ async function housingContext(tools: ActionTools, tripId: string): Promise<Housi
   }
 }
 
-function researchFields(o: ResearchedOption) {
+/** Activities and food: the destination, dates if locked, group size; food adds the public food preferences. */
+async function additionalContext(tools: ActionTools, tripId: string, module: 'activities' | 'food'): Promise<ActivitiesContext | FoodContext | ActionResult> {
+  const trip = await tools.get<Row<TripRow>>('trips', tripId)
+  if (!trip.success) return fail('Trip not found.', 'not_found')
+  const t = trip.data.record.data
+  if (!t.destination) return fail('Add a destination to the trip first (organizer: Edit trip).', 'no_destination')
+  const members = await activeMemberIds(tools, tripId)
+  const base: ActivitiesContext = {
+    destination: t.destination,
+    dates: t.datesStatus === 'locked' && t.datesStart && t.datesEnd ? { start: t.datesStart, end: t.datesEnd } : null,
+    groupSize: Math.max(1, members.length),
+  }
+  if (module === 'activities') return base
+  const prefs = await tools.query<Row<{ userId: string; dietary?: unknown; likes?: string | null; avoids?: string | null }>>('food_prefs', { where: { tripId }, limit: 500 })
+  const active = new Set(members)
+  const rows = (prefs.success ? prefs.data.records : []).filter((r) => active.has(r.data.userId)).map((r) => r.data)
+  return {
+    ...base,
+    needs: groupNeeds(rows.map((r) => ({ dietary: readDietary(r.dietary) }))),
+    likes: rows.map((r) => r.likes ?? '').filter(Boolean),
+    avoids: rows.map((r) => r.avoids ?? '').filter(Boolean),
+  }
+}
+
+type Input = { title: string; url: string | null }
+
+/** The research call for a module: Suggest (no input) or one pasted link or name. */
+async function researchJob(
+  tools: ActionTools, env: Env, userId: string, tripId: string, module: EngineModule, input: Input | null,
+): Promise<ResearchJob | ActionResult> {
+  const fake = await shouldUseFakeAi(env, tools, userId)
+  const count = SUGGESTION_COUNT[module]
+  if (module === 'housing') {
+    const ctx = await housingContext(tools, tripId)
+    if ('success' in ctx) return ctx
+    return {
+      module, fake, system: RESEARCH_SYSTEM_PROMPT, shape: { price: 'total' },
+      searches: input ? lookupSearches(input, ctx.destination) : housingSearches(ctx),
+      userPrompt: (r) => (input ? lookupUserPrompt(ctx, input, r) : suggestUserPrompt(ctx, count, r)),
+    }
+  }
+  const ctx = await additionalContext(tools, tripId, module)
+  if ('success' in ctx) return ctx
+  if (module === 'activities') {
+    return {
+      module, fake, system: ACTIVITIES_SYSTEM_PROMPT, shape: { price: 'perPerson' },
+      searches: input ? additionalLookupSearches(ACTIVITY_SITES, input, ctx.destination) : activitySearches(ctx),
+      userPrompt: (r) => (input ? additionalLookupPrompt('activity', ctx, ACTIVITY_SITES, input, r) : activitiesSuggestPrompt(ctx, count, r)),
+    }
+  }
+  const food = ctx as FoodContext
+  return {
+    module, fake, system: FOOD_SYSTEM_PROMPT, shape: { price: 'perPerson', dietary: true },
+    searches: input ? additionalLookupSearches(FOOD_SITES, input, food.destination) : foodSearches(food),
+    userPrompt: (r) => (input ? additionalLookupPrompt('place to eat', food, FOOD_SITES, input, r) : foodSuggestPrompt(food, count, r)),
+    fakeNeeds: food.needs.map((n) => n.tag),
+  }
+}
+
+/** What research writes onto an option. Housing stores the total; the others the per-person price. */
+function researchFields(module: EngineModule, o: ResearchedOption) {
+  const price = module === 'housing' ? o.totalPrice : o.pricePerPerson
   return {
     researchStatus: 'done',
     research: JSON.stringify({ summary: o.summary, pros: o.pros, cons: o.cons, sources: o.sources }),
-    estTotal: o.totalPrice,
-    priceSource: o.totalPrice == null ? null : 'ai',
+    ...(module === 'housing' ? { estTotal: o.totalPrice } : { estTotal: null, estPricePerPerson: o.pricePerPerson }),
+    ...(module === 'food' ? { accommodates: JSON.stringify(o.accommodates ?? []) } : {}),
+    priceSource: price == null ? null : 'ai',
     imageUrl: o.imageUrl,
   }
 }
@@ -196,19 +263,17 @@ async function openBoard(tools: ActionTools, params: Record<string, unknown>, us
   return { tripId: check.membership.tripId, module: params.module, board }
 }
 
-/** AI suggests N options (5 for housing). "Search for more" calls it again. */
+/** AI suggests N options (5 housing, 10 activities or food). "Search for more" calls it again. */
 const suggestOptions: ActionHandler<Env> = async ({ userId, params, tools, env }) => {
   const g = await openBoard(tools, params, userId)
   if ('error' in g) return g.error!
-  const ctx = await housingContext(tools, g.tripId)
-  if ('success' in ctx) return ctx
+  const job = await researchJob(tools, env, userId, g.tripId, g.module, null)
+  if ('success' in job) return job
   const capped = await takeResearchCall(tools, g.tripId)
   if (capped) return capped
 
   const count = SUGGESTION_COUNT[g.module]
-  const outcome = await runResearch(tools, await shouldUseFakeAi(env, tools, userId), housingSearches(ctx), (results) =>
-    suggestUserPrompt(ctx, count, results),
-  )
+  const outcome = await runResearch(tools, job)
   if (!outcome.ok) return fail(outcome.error, outcome.code)
 
   const existing = await tools.query<Row<OptionRow>>('options', { where: { boardId: g.board.recordId }, limit: 500 })
@@ -219,11 +284,11 @@ const suggestOptions: ActionHandler<Env> = async ({ userId, params, tools, env }
     if (have.some((h) => sameUrl(h.data.url, o.url) || h.data.title.toLowerCase() === o.title.toLowerCase())) continue
     const created = await tools.create('options', {
       tripId: g.tripId, boardId: g.board.recordId, module: g.module, title: o.title, url: o.url,
-      source: 'ai', addedBy: userId, ...researchFields(o),
+      source: 'ai', addedBy: userId, ...researchFields(g.module, o),
     })
     if (created.success) added++
   }
-  await refreshHousingFit(tools, g.tripId)
+  if (g.module === 'housing') await refreshHousingFit(tools, g.tripId)
   return ok({ added })
 }
 
@@ -249,8 +314,8 @@ const addOption: Handler = async ({ userId, params, tools, env }) => {
     source: 'member', addedBy: userId, researchStatus: 'pending',
   })
   if (!created.success) return fail('Could not add that.', 'create_failed')
-  const research = await researchInto(tools, env, userId, g.tripId, created.data.recordId, { title, url })
-  await refreshHousingFit(tools, g.tripId)
+  const research = await researchInto(tools, env, userId, g.tripId, g.module, created.data.recordId, { title, url })
+  if (g.module === 'housing') await refreshHousingFit(tools, g.tripId)
   return ok({ optionId: created.data.recordId, researched: research.success, note: research.success ? undefined : research.error })
 }
 
@@ -262,30 +327,31 @@ const researchOption: Handler = async ({ userId, params, tools, env }) => {
   const opt = await tools.get<Row<OptionRow>>('options', params.optionId)
   if (!opt.success || opt.data.record.data.boardId !== g.board.recordId) return fail('That option wasn’t found.', 'not_found')
   const o = opt.data.record.data
-  const res = await researchInto(tools, env, userId, g.tripId, params.optionId, { title: o.title, url: o.url ?? null })
-  await refreshHousingFit(tools, g.tripId)
+  const res = await researchInto(tools, env, userId, g.tripId, g.module, params.optionId, { title: o.title, url: o.url ?? null })
+  if (g.module === 'housing') await refreshHousingFit(tools, g.tripId)
   return res
 }
 
 async function researchInto(
-  tools: ActionTools, env: Env, userId: string, tripId: string, optionId: string, input: { title: string; url: string | null },
+  tools: ActionTools, env: Env, userId: string, tripId: string, module: EngineModule, optionId: string, input: Input,
 ): Promise<ActionResult> {
-  const ctx = await housingContext(tools, tripId)
-  if ('success' in ctx) return ctx
+  const job = await researchJob(tools, env, userId, tripId, module, input)
+  if ('success' in job) {
+    await tools.update('options', optionId, { researchStatus: 'failed' })
+    return job
+  }
   const capped = await takeResearchCall(tools, tripId)
   if (capped) {
     await tools.update('options', optionId, { researchStatus: 'failed' })
     return capped
   }
-  const outcome = await runResearch(tools, await shouldUseFakeAi(env, tools, userId), lookupSearches(input, ctx.destination), (results) =>
-    lookupUserPrompt(ctx, input, results),
-  )
+  const outcome = await runResearch(tools, job)
   const found = outcome.ok ? outcome.options[0] : undefined
   if (!found) {
     await tools.update('options', optionId, { researchStatus: 'failed' })
     return outcome.ok ? fail('The AI couldn’t find that place in the search results.', 'not_found_in_results') : fail(outcome.error, outcome.code)
   }
-  await tools.update('options', optionId, { ...researchFields(found), url: input.url ?? found.url, title: input.url ? found.title : input.title })
+  await tools.update('options', optionId, { ...researchFields(module, found), url: input.url ?? found.url, title: input.url ? found.title : input.title })
   return ok({ researched: true })
 }
 
@@ -311,20 +377,30 @@ const toggleVote: Handler = async ({ userId, params, tools }) => {
   return ok({ voted: true })
 }
 
-/** Any member fills in (or corrects) the total price for the stay; the card says "added by a member". */
+/** Any member fills in (or corrects) a price: housing's total for the stay, or per person for the others. Labeled "added by a member". */
 const setOptionPrice: Handler = async ({ userId, params, tools }) => {
   const g = await openBoard(tools, params, userId)
   if ('error' in g) return g.error!
   if (typeof params.optionId !== 'string') return fail('optionId is required.', 'bad_request')
   const opt = await tools.get<Row<OptionRow>>('options', params.optionId)
   if (!opt.success || opt.data.record.data.boardId !== g.board.recordId) return fail('That option wasn’t found.', 'not_found')
-  const raw = params.totalPrice
-  const price = raw == null || raw === '' ? null : Number(raw)
-  if (price != null && (!Number.isInteger(price) || price < 1 || price > 1_000_000)) {
-    return fail('The price must be a whole number of dollars for the whole stay.', 'bad_request')
+  if (g.module === 'housing') {
+    const raw = params.totalPrice
+    const price = raw == null || raw === '' ? null : Number(raw)
+    if (price != null && (!Number.isInteger(price) || price < 1 || price > 1_000_000)) {
+      return fail('The price must be a whole number of dollars for the whole stay.', 'bad_request')
+    }
+    await tools.update('options', params.optionId, { estTotal: price, priceSource: price == null ? null : 'member' })
+    await refreshHousingFit(tools, g.tripId)
+    return ok({ saved: true })
   }
-  await tools.update('options', params.optionId, { estTotal: price, priceSource: price == null ? null : 'member' })
-  await refreshHousingFit(tools, g.tripId)
+  // Activities and food: per person, for reference only (0 = free). The human's decision.
+  const raw = params.pricePerPerson
+  const price = raw == null || raw === '' ? null : Number(raw)
+  if (price != null && (!Number.isInteger(price) || price < 0 || price > 100_000)) {
+    return fail('The price must be a whole number of dollars per person.', 'bad_request')
+  }
+  await tools.update('options', params.optionId, { estPricePerPerson: price, priceSource: price == null ? null : 'member' })
   return ok({ saved: true })
 }
 

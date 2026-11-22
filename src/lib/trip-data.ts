@@ -10,6 +10,7 @@ import type { BudgetCategory } from '../schemas/trip-schemas'
 import type { EngineModule } from '../schemas/engine-schemas'
 import { OTHER_KINDS, TRAVEL_MODES, type OtherKind, type TravelMode } from '../schemas/travel-schemas'
 import type { TravelEntry } from './travel'
+import { readDietary, type DietaryTag } from './food'
 import { callAction } from './actions-client'
 import type { CategoryFit } from './budget-fit'
 import { readPublicCategories } from './core-input'
@@ -201,6 +202,8 @@ export interface EngineOption {
   priceSource: 'ai' | 'member' | null
   imageUrl: string | null
   fit: CategoryFit | null
+  /** Food: dietary tags the sources confirm; null = not researched. */
+  accommodates: DietaryTag[] | null
   createdAt: string
 }
 
@@ -251,6 +254,7 @@ export function useOptions(tripId: string | undefined, module: EngineModule) {
           priceSource: d.priceSource === 'ai' || d.priceSource === 'member' ? d.priceSource : null,
           imageUrl: typeof d.imageUrl === 'string' && d.imageUrl.startsWith('https://') ? d.imageUrl : null,
           fit: parseJson<CategoryFit>(d.fit),
+          accommodates: typeof d.accommodates === 'string' && d.accommodates ? readDietary(d.accommodates) : null,
           createdAt: r.createdAt,
         }
       }),
@@ -372,6 +376,26 @@ export function useNotes(tripId: string | undefined): Note[] {
       records
         .map((r): Note => ({ id: r.recordId, authorId: r.data.authorId, text: r.data.text, createdAt: r.createdAt, editedAt: r.data.editedAt || null }))
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id)),
+    [records],
+  )
+}
+
+// ── Additional: food preferences ────────────────────────────────────────
+
+export interface FoodPrefs {
+  userId: string
+  dietary: DietaryTag[]
+  likes: string | null
+  avoids: string | null
+}
+
+/** Everyone's food preferences in this trip (public to the group). */
+export function useFoodPrefs(tripId: string | undefined): FoodPrefs[] {
+  const { records } = useQuery<{ userId: string; dietary?: unknown; likes?: string | null; avoids?: string | null }>('food_prefs', {
+    where: { tripId: tripId ?? '' },
+  })
+  return useMemo(
+    () => records.map((r) => ({ userId: r.data.userId, dietary: readDietary(r.data.dietary), likes: r.data.likes || null, avoids: r.data.avoids || null })),
     [records],
   )
 }

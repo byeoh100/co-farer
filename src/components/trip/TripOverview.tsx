@@ -26,6 +26,8 @@ import { TravelFull } from '../travel/TravelFull'
 import { TravelSummary } from '../travel/TravelSummary'
 import { NotesFull } from '../notes/NotesFull'
 import { NotesSummary } from '../notes/NotesSummary'
+import { AdditionalFull } from '../additional/AdditionalFull'
+import { AdditionalSummary } from '../additional/AdditionalSummary'
 import { ExpandableSection, SectionStageContext } from './ExpandableSection'
 
 type SectionId = 'housing' | 'travel' | 'additional' | 'notes'
@@ -63,7 +65,15 @@ function sectionsFor(trip: Trip, members: Member[], me: Member): SectionSlot[] {
       summary: <TravelSummary tripId={trip.id} members={members} />,
       full: <TravelFull trip={trip} members={members} me={me} />,
     },
-    { id: 'additional', label: 'Additional', notice: NOT_READY, available: false },
+    {
+      // Activities and Food (Modules 6–7, built together): usable right away.
+      id: 'additional',
+      label: 'Additional',
+      notice: NOT_READY,
+      available: true,
+      summary: <AdditionalSummary tripId={trip.id} members={members} />,
+      full: <AdditionalFull trip={trip} members={members} me={me} />,
+    },
     {
       id: 'notes',
       label: 'Notes',

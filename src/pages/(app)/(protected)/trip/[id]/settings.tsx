@@ -1,7 +1,7 @@
 /**
  * My settings for this trip (spec "Screens and flow" 5). New members land
  * here right after joining (?welcome=1), then continue to the trip page.
- * Food preferences join this page in Module 7.
+ * Food preferences (visible to the group) are below the budgets.
  */
 
 import { useEffect, useState } from 'react'
@@ -13,7 +13,8 @@ import { BUDGET_CATEGORIES, type BudgetCategory } from '../../../../../schemas/t
 import { summarizeMyBudget } from '../../../../../lib/budget-fit'
 import { MAX_BUDGET } from '../../../../../lib/core-input'
 import { callAction } from '../../../../../lib/actions-client'
-import { useHousingEstimate, useMyBudget } from '../../../../../lib/trip-data'
+import { useFoodPrefs, useHousingEstimate, useMyBudget } from '../../../../../lib/trip-data'
+import { DIETARY_LABELS, DIETARY_TAGS, MAX_CUISINE_TEXT, type DietaryTag } from '../../../../../lib/food'
 import { useTripContext } from '../../../../../lib/trip-context'
 
 const LABELS: Record<BudgetCategory, { title: string; hint: string }> = {
@@ -184,6 +185,8 @@ export default function TripSettingsPage() {
         )}
       </div>
 
+      <FoodPreferences tripId={trip.id} userId={me.userId} />
+
       {me.tripRole === 'organizer' && (
         <TripDetails tripId={trip.id} name={trip.name} destination={trip.destination ?? ''} meetingPoint={trip.meetingPoint ?? ''} />
       )}
@@ -257,6 +260,83 @@ function TripDetails({ tripId, name, destination, meetingPoint }: { tripId: stri
       </div>
       <Button size="sm" className="mt-3" onClick={save} loading={saving} disabled={!changed || !draftName.trim() || !draftDest.trim()} data-testid="save-trip-details">
         Save trip details
+      </Button>
+    </section>
+  )
+}
+
+/** Your dietary needs and cuisines. Visible to everyone in the trip (spec §7). */
+function FoodPreferences({ tripId, userId }: { tripId: string; userId: string }) {
+  const { success, error } = useToast()
+  const mine = useFoodPrefs(tripId).find((p) => p.userId === userId)
+  const [draft, setDraft] = useState<{ dietary: DietaryTag[]; likes: string; avoids: string } | null>(null)
+  const [saving, setSaving] = useState(false)
+  const current = draft ?? { dietary: mine?.dietary ?? [], likes: mine?.likes ?? '', avoids: mine?.avoids ?? '' }
+
+  const toggle = (t: DietaryTag) =>
+    setDraft({ ...current, dietary: current.dietary.includes(t) ? current.dietary.filter((x) => x !== t) : [...current.dietary, t] })
+
+  const save = async () => {
+    setSaving(true)
+    const res = await callAction('setMyFoodPrefs', { tripId, ...current })
+    setSaving(false)
+    if (!res.success) return error('Could not save', res.error)
+    setDraft(null)
+    success('Food preferences saved')
+  }
+
+  return (
+    <section id="food" className="mt-8 rounded-xl border border-border bg-card p-4" aria-label="Food preferences" data-testid="food-prefs">
+      <h2 className="text-sm font-medium">Food preferences</h2>
+      <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Users className="h-3.5 w-3.5" aria-hidden /> Everyone in the trip can see these. They shape the food suggestions.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Dietary needs">
+        {DIETARY_TAGS.map((t) => {
+          const on = current.dietary.includes(t)
+          return (
+            <button
+              key={t}
+              type="button"
+              aria-pressed={on}
+              onClick={() => toggle(t)}
+              className={cn(
+                'rounded-full border px-3 py-1 text-sm transition-colors',
+                on ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-muted',
+              )}
+              data-testid={`diet-${t}`}
+            >
+              {DIETARY_LABELS[t]}
+            </button>
+          )
+        })}
+      </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="food-likes">Cuisines you like</Label>
+          <Input
+            id="food-likes"
+            maxLength={MAX_CUISINE_TEXT}
+            placeholder="e.g. Mexican, Thai, BBQ"
+            value={current.likes}
+            onChange={(e) => setDraft({ ...current, likes: e.target.value })}
+            data-testid="food-likes"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="food-avoids">Cuisines to avoid</Label>
+          <Input
+            id="food-avoids"
+            maxLength={MAX_CUISINE_TEXT}
+            placeholder="e.g. very spicy food"
+            value={current.avoids}
+            onChange={(e) => setDraft({ ...current, avoids: e.target.value })}
+            data-testid="food-avoids"
+          />
+        </div>
+      </div>
+      <Button size="sm" className="mt-3" onClick={save} loading={saving} disabled={!draft} data-testid="save-food-prefs">
+        Save food preferences
       </Button>
     </section>
   )

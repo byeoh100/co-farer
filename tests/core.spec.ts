@@ -55,11 +55,9 @@ test('Core: create, join, private and public budgets, non-member refused', async
 
   // The frame: disabled sections show a notice instead of opening.
   // aria-disabled makes Playwright wait for "enabled"; a real click still fires, so force it.
-  // Housing (Module 3) waits for locked dates; unbuilt sections aren't ready.
+  // Housing (Module 3) waits for locked dates. (Every other section is built and open.)
   await a.page.getByTestId('section-housing').click({ force: true })
   await expect(a.page.getByText('Housing opens once the dates are locked.').first()).toBeVisible()
-  await a.page.getByTestId('section-additional').click({ force: true })
-  await expect(a.page.getByText('This part isn’t ready yet.').first()).toBeVisible()
 
   // A (organizer) reads the invite link from the members panel.
   await a.page.getByTestId('members-stack').click()

@@ -14,6 +14,7 @@
 import { z } from 'zod'
 import type { PriceBand } from './budget-fit'
 import { formatRange, rangeLength, type DateRange } from './dates'
+import { isDietaryTag, type DietaryTag } from './food'
 
 export interface SearchResult {
   title: string
@@ -30,8 +31,12 @@ export interface ResearchedOption {
   pros: string[]
   cons: string[]
   sources: string[]
-  /** The whole stay for the whole group, in dollars. */
+  /** Housing: the whole stay for the whole group, in dollars. */
   totalPrice: number | null
+  /** Activities and food: one person's cost, in dollars (0 = free). */
+  pricePerPerson: number | null
+  /** Food: dietary tags the sources say the place accommodates. */
+  accommodates: DietaryTag[] | null
   imageUrl: string | null
 }
 
@@ -102,13 +107,18 @@ export function lookupSearches(input: { title: string; url: string | null }, des
   ]
 }
 
-export function isBookingSite(url: string): boolean {
+/** Is this URL on one of these sites (or a subdomain)? */
+export function onSites(url: string, sites: readonly string[]): boolean {
   try {
     const host = new URL(url).hostname.replace(/^www\./, '')
-    return BOOKING_SITES.some((d) => host === d || host.endsWith(`.${d}`))
+    return sites.some((d) => host === d || host.endsWith(`.${d}`))
   } catch {
     return false
   }
+}
+
+export function isBookingSite(url: string): boolean {
+  return onSites(url, BOOKING_SITES)
 }
 
 /** Joins several searches' results in order, dropping repeated pages. */
@@ -138,10 +148,15 @@ Rules:
 Reply with exactly this JSON shape and nothing else:
 {"options":[{"title":string,"url":string|null,"summary":string,"pros":[string],"cons":[string],"sources":[string],"totalPrice":number|null}]}`
 
-function resultsBlock(results: SearchResult[]): string {
+/** The search results as numbered, labeled blocks; results on `sites` get `label`. */
+export function resultsBlockFor(results: SearchResult[], sites: readonly string[], label: string): string {
   return results
-    .map((r, i) => `[${i + 1}] ${r.title}${isBookingSite(r.url) ? ' (booking site)' : ''}\nURL: ${r.url}\n${r.text.slice(0, 2200)}`)
+    .map((r, i) => `[${i + 1}] ${r.title}${onSites(r.url, sites) ? ` (${label})` : ''}\nURL: ${r.url}\n${r.text.slice(0, 2200)}`)
     .join('\n\n')
+}
+
+function resultsBlock(results: SearchResult[]): string {
+  return resultsBlockFor(results, BOOKING_SITES, 'booking site')
 }
 
 function tripLine(ctx: HousingContext): string {
@@ -256,6 +271,8 @@ const optionSchema = z.object({
   cons: z.array(z.string()).default([]),
   sources: z.array(z.string()).default([]),
   totalPrice: z.number().nullable().optional(),
+  pricePerPerson: z.number().nullable().optional(),
+  accommodates: z.array(z.string()).nullable().optional(),
 })
 const replySchema = z.object({ options: z.array(optionSchema) })
 
@@ -271,12 +288,19 @@ function normalizeUrl(u: string): string {
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s)
 
+export interface ReplyShape {
+  /** Housing reads `totalPrice` (must be > 0); the others read `pricePerPerson` (0 = free). */
+  price: 'total' | 'perPerson'
+  /** Food: keep `accommodates`, known tags only. */
+  dietary?: boolean
+}
+
 /**
  * Parses and checks the model's JSON. Sources not in `allowedUrls` are
  * removed, and options left without a source are dropped. Prices must be
- * positive and finite, or they become null.
+ * finite and positive (or zero for a free activity), or they become null.
  */
-export function parseResearchReply(text: string, allowedUrls: string[]): ResearchedOption[] | null {
+export function parseResearchReply(text: string, allowedUrls: string[], shape: ReplyShape = { price: 'total' }): ResearchedOption[] | null {
   const start = text.indexOf('{')
   const end = text.lastIndexOf('}')
   if (start < 0 || end <= start) return null
@@ -295,7 +319,9 @@ export function parseResearchReply(text: string, allowedUrls: string[]): Researc
     const sources = [...new Set(o.sources.map((s) => allowed.get(normalizeUrl(s))).filter((s): s is string => !!s))]
     if (sources.length === 0) continue
     const url = o.url ? (allowed.get(normalizeUrl(o.url)) ?? sources[0]) : sources[0]
-    const price = o.totalPrice
+    const total = o.totalPrice
+    const each = o.pricePerPerson
+    const okEach = shape.price === 'perPerson' && typeof each === 'number' && Number.isFinite(each) && each >= 0
     out.push({
       title: clip(o.title.trim(), 160),
       url,
@@ -303,7 +329,9 @@ export function parseResearchReply(text: string, allowedUrls: string[]): Researc
       pros: o.pros.map((p) => clip(p.trim(), 120)).filter(Boolean).slice(0, 3),
       cons: o.cons.map((c) => clip(c.trim(), 120)).filter(Boolean).slice(0, 3),
       sources: sources.slice(0, 5),
-      totalPrice: typeof price === 'number' && Number.isFinite(price) && price > 0 ? Math.round(price) : null,
+      totalPrice: shape.price === 'total' && typeof total === 'number' && Number.isFinite(total) && total > 0 ? Math.round(total) : null,
+      pricePerPerson: okEach ? Math.round(each as number) : null,
+      accommodates: shape.dietary ? [...new Set((o.accommodates ?? []).filter(isDietaryTag))] : null,
       imageUrl: null,
     })
   }

@@ -15,6 +15,7 @@ import { datesSchemas } from './schemas/dates-schemas'
 import { engineSchemas } from './schemas/engine-schemas'
 import { travelSchemas } from './schemas/travel-schemas'
 import { notesSchemas } from './schemas/notes-schemas'
+import { foodSchemas } from './schemas/food-schemas'
 
 // Add each module's schemas here only when that module is being built.
 export const schemas: CollectionSchema[] = [
@@ -25,4 +26,5 @@ export const schemas: CollectionSchema[] = [
   ...engineSchemas,
   ...travelSchemas,
   ...notesSchemas,
+  ...foodSchemas,
 ]

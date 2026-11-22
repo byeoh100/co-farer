@@ -30,6 +30,8 @@ const steps: CleanupStep[] = [
   // Module 4: their seat claim and travel go; if they drove, their riders are released.
   cleanupTravelOnLeave,
   // Module 5: nothing. Their notes stay on the board, grayed out (spec: edge cases).
+  // Additional: their food preferences stop counting toward warnings and searches.
+  (tools, tripId, userId) => deleteAll(tools, 'food_prefs', { tripId, userId }),
 ]
 
 export async function runLeaveCleanup(tools: ActionTools, tripId: string, userId: string): Promise<void> {

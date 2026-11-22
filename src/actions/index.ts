@@ -5,6 +5,7 @@ import { datesActions } from './dates'
 import { engineActions } from './engine'
 import { travelActions } from './travel'
 import { notesActions } from './notes'
+import { foodActions } from './food'
 import { testCleanupActions } from './test-cleanup'
 
 /**
@@ -20,5 +21,6 @@ export const actions: Record<string, ActionHandler<Env>> = {
   ...engineActions, // Module 3: Housing (the shared engine)
   ...travelActions, // Module 4: Transportation
   ...notesActions, // Module 5: Notes
+  ...foodActions, // Additional (Modules 6–7): food preferences
   ...testCleanupActions, // local test accounts only (refused everywhere else)
 }
