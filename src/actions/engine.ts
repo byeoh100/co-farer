@@ -4,7 +4,8 @@
  *
  * Every action starts with requireMember or requireOrganizer and takes the
  * caller from ctx.userId. Fit is stored as counts only; the AI search gets
- * only the rounded group price band, never one person's budget.
+ * the average of every set housing budget (public or private), never a
+ * named person's number.
  */
 
 import type { ActionHandler, ActionResult, ActionTools } from 'deepspace/worker'

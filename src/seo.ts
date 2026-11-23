@@ -26,7 +26,7 @@ declare const __DEEPSPACE_SITE_ORIGIN__: string | undefined
 
 export const seo = {
   title: 'Co-farer | Group trip planner',
-  description: 'Plan a group trip together: pick dates, vote on where to stay, and sort out rides, with budgets kept private unless you choose to share.',
+  description: 'Plan a group trip together: pick dates, vote on where to stay, and sort out rides, with everyone’s budget counted, shared or not.',
   /** Public origin for canonical URLs, og:url, and the sitemap — no trailing
    *  slash. Replace with the custom domain once one is attached, e.g.
    *  'https://www.example.com'. */

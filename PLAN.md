@@ -7,8 +7,8 @@ This is the code plan for the
 they disagree, the spec wins. Fix this file to match it.
 
 Co-farer is a group trip planner where friends decide on dates, where to
-stay, and how to get there together. Each budget is private unless its owner
-chooses to share it.
+stay, and how to get there together. Budgets are shared with the trip by
+default; anyone can switch theirs to private, and it still counts.
 
 ---
 
@@ -48,9 +48,10 @@ the whole spec and ask for the app.
 - `src/actions/trip-access.ts`: `requireMember` and `requireOrganizer`
   guards, written in full.
 - `src/actions/index.ts`: Core action stubs.
-- `src/lib/budget-fit.ts`: the per-category fit counts, the rounded group
-  price band, and the person's own budget summary (essentials-only total),
-  all written in full. Its tests check that no exact budget leaks out.
+- `src/lib/budget-fit.ts`: the per-category fit counts, the group price
+  (the average of every set budget), and the person's own budget summary
+  (essentials-only total), all written in full. Its tests check that fit
+  output holds only counts. (Updated by the Planned Changes Spec, Change 1.)
 - `src/schemas.test.ts`: pins the access rules and runs the SDK's
   `lintSchemas`.
 - **Status:** `tsc`, `eslint` and 14 unit tests pass (11 for Co-farer, 3 from the template). Registered, deployed
@@ -71,11 +72,13 @@ the whole spec and ask for the app.
   **every action starts with `requireMember` or `requireOrganizer`**. The
   caller is `ctx.userId`, never a parameter.
 - **Budgets:**
-  - The private `budgets` collection (`read: 'own'`) holds all figures.
-  - `public_budgets` (`read: 'team'`) has a row only for the categories a
-    person has switched to public. `setMyBudgets` keeps the two in sync.
-  - Fit counts are computed in actions, which can read all budgets, and only
-    the counts are stored.
+  - The owner-only `budgets` collection (`read: 'own'`) holds all figures
+    and one `isPublic` switch (public by default).
+  - `public_budgets` (`read: 'team'`) has a row for every category a person
+    has set while their budget is public, and none while it's private.
+    `setMyBudgets` keeps the two in sync.
+  - Fit counts and the AI's group price are computed in actions, which can
+    read all budgets, public or private; only counts and the average leave.
 - **Food preferences are public** (spec decision), so Module 7 stores them in
   a `team`-read collection. They're never mixed into budgets.
 - **Admins get no extra read rights on trip data.**
@@ -186,17 +189,19 @@ when you start building it.
     (approved exception to `requireMember`). Saves your name and picture
     to `profiles`, then copies them into each of your memberships. Pictures must come from
     the app's own file storage (`/api/files/...?scope=app`).
-  - `setMyBudgets`: upserts your private row and syncs `public_budgets`:
-    adds rows for categories switched to public, deletes them when switched
-    back.
+  - `setMyBudgets`: upserts your budget row and syncs `public_budgets`:
+    while public, a row for every set category; while private, none.
+    (One switch since the Planned Changes Spec, Change 1.)
 - **Pages:**
   1. Landing page and sign in.
   2. **My trips**: list plus create.
   3. **Join** (`/join/[code]`): trip name and a join button.
   4. **Settings** (`/trip/[id]/settings`), shown right after joining:
-     - four budgets, each with a private/public switch (private by default);
+     - four budgets and one "Share my budget with the trip" switch (on by
+       default);
      - the essentials-only total and over-budget flags;
-     - a clear label: "only you can see private budgets".
+     - a clear note on what the switch does: private numbers aren't shown
+       to others but still count.
   5. **Trip page** (`/trip/[id]`): `TripOverview`, laid out in
      `docs/LAYOUT.md`, not tabs. It has the header (members as overlapping
      profile-picture circles, your essentials total, a link to settings), a
@@ -316,7 +321,8 @@ when you start building it.
   `lockable`, has `fit` on its options, and starts as `waiting_for_dates`.
 - **Flow:**
   - Once dates lock, the board opens, and "Suggest" makes the top 5 options
-    using the rounded group price band, never one person's number.
+    around the group's average housing budget (every set budget, public
+    or private), scaled to the group.
   - Anyone can paste a link or add a name, and the AI researches it.
   - Each option card shows a summary, price per person, pros and cons,
     sources, and fit ("over the housing budget for 2 of 6").
@@ -383,6 +389,8 @@ when you start building it.
       Both searches together count as one research call. Exa also returns
       the passages that mention prices and ratings, and the model may use an
       advertised nightly or "from" rate.
+    - (Superseded by the Planned Changes Spec, Change 1: no minimum and no
+      rounding for anyone. Kept as the record of the Module 3 decision.)
     - Trips of 1–2 members skip the 3-budget minimum: fit counts show (and
       the search's price band uses their budgets) as soon as one budget is
       set. A solo trip reads "Fits your housing budget". From 3 members on,
@@ -581,8 +589,8 @@ when you start building it.
   `npx deepspace test run all`: one spec file per module, covering its
   "done when" list.
 - **Privacy tests, which must always pass:**
-  - A can't read B's private budget through `budgets`, `public_budgets`,
-    `options.fit`, or a non-member action call.
+  - A can't read B's private budget figures through `budgets`,
+    `public_budgets`, `options.fit`, or a non-member action call.
   - A private budget is never readable by another member (`budgets` is
     owner-only), yet still counts in fit (tests/housing.spec.ts).
 - **Real-world testing:** first, mock trips of 2 to 3 people, to test joining,

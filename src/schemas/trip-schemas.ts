@@ -90,7 +90,11 @@ export const teamMembersSchema: CollectionSchema = {
   permissions: sameForAllRoles(teamReadOnly),
 }
 
-/** Private budgets: one row per (trip, person), all four categories. */
+/**
+ * Every budget figure: one row per (trip, person), all four categories,
+ * plus the person's public/private switch. Owner-only, public or not: others
+ * see public figures through `public_budgets`, never this table.
+ */
 export const budgetsSchema: CollectionSchema = {
   name: 'budgets',
   ownerField: 'userId',
@@ -119,8 +123,9 @@ export const budgetsSchema: CollectionSchema = {
 }
 
 /**
- * Public projection of budgets. A row exists only while that person has
- * that category switched to public. Written only by `setMyBudgets`.
+ * Public projection of budgets. While a person's budget is public (the
+ * default), one row per category they've set; none while it's private.
+ * Written only by `setMyBudgets` (and the one-time `budget-visibility` move).
  */
 export const publicBudgetsSchema: CollectionSchema = {
   name: 'public_budgets',

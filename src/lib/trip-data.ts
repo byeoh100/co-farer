@@ -119,7 +119,7 @@ export function useMembers(tripId: string | undefined, { includeLeft = false } =
 
 export type MyBudget = Record<BudgetCategory, number | null> & { isPublic: boolean }
 
-/** The caller's own private budget row. Only its owner can ever read it ('own' rule). */
+/** The caller's own budget row (figures and switch). Only its owner can ever read it ('own' rule). */
 export function useMyBudget(tripId: string | undefined, userId: string | undefined) {
   const { records, status } = useQuery<Record<string, unknown>>('budgets', {
     where: { tripId: tripId ?? '', userId: userId ?? '' },
