@@ -9,11 +9,18 @@
  * - Points DeepSpace's platform URLs at a closed local port, so anything
  *   that still needs a DeepSpace server fails visibly instead of silently.
  * - Keeps Durable Object data in .workerd-data/do across restarts.
+ * - AI research (Phase 2a): the @deepspace.test stand-in users get the free
+ *   fake AI, as before. For real Bedrock and Brave calls, run with `--aws`:
+ *   it exports short-lived credentials from your AWS profile (AWS_PROFILE,
+ *   default "cofarer") with `aws configure export-credentials`, and reads
+ *   BRAVE_API_KEY from your shell if set (else Parameter Store). Those keys
+ *   live only in this process's environment, never in a file.
  */
 
 import { generateKeyPairSync } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { spawn } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
+import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
@@ -61,6 +68,29 @@ const env = {
   STUB_AUTH_PRIVATE_KEY: keys.privatePem,
 }
 
+const userArgs = process.argv.slice(2)
+const useAws = userArgs.includes('--aws')
+env.AWS_REGION ||= 'us-east-2'
+env.BEDROCK_MODEL_ID ||= ''
+for (const k of ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_SESSION_TOKEN', 'BRAVE_API_KEY']) env[k] ||= ''
+if (useAws) {
+  const profile = process.env.AWS_PROFILE || 'cofarer'
+  try {
+    const out = execFileSync('aws', ['configure', 'export-credentials', '--profile', profile, '--format', 'process'], {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${process.env.PATH}:${resolve(homedir(), '.local/bin')}` },
+    })
+    const c = JSON.parse(out)
+    env.AWS_ACCESS_KEY_ID = c.AccessKeyId
+    env.AWS_SECRET_ACCESS_KEY = c.SecretAccessKey
+    env.AWS_SESSION_TOKEN = c.SessionToken ?? ''
+    console.log(`Using AWS profile "${profile}" for Bedrock${env.BRAVE_API_KEY ? '' : ' and Parameter Store'}${c.Expiration ? ` (credentials expire ${c.Expiration})` : ''}`)
+  } catch {
+    console.error(`Couldn't get credentials for AWS profile "${profile}". Run \`aws login --profile ${profile}\` first.`)
+    process.exit(1)
+  }
+}
+
 const bin = resolve(root, 'node_modules/.bin/workerd')
 const args = [
   'serve',
@@ -68,7 +98,7 @@ const args = [
   '--experimental',
   `--directory-path=assets-disk=${resolve(root, 'dist/client')}`,
   `--directory-path=do-storage=${doDir}`,
-  ...process.argv.slice(2),
+  ...userArgs.filter((a) => a !== '--aws'),
 ]
 console.log('Co-farer on workerd → http://localhost:8080   (sign in: http://localhost:8080/api/auth/stub-login)')
 const child = spawn(bin, args, { cwd: root, env, stdio: 'inherit' })

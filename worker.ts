@@ -34,6 +34,7 @@ import {
 } from './src/server/http-routes.js'
 import { registerRealtimeRoutes } from './src/server/realtime-routes.js'
 import { registerStubAuthRoutes } from './src/server/stub-auth.js'
+import type { AiEnv } from './src/lib/ai-provider.js'
 
 // Dynamic deploy reads this manifest to create the app's DO bindings.
 export const __DO_MANIFEST__ = [
@@ -83,7 +84,11 @@ export class AppJobRoom extends JobRoom<Env> {
   }
 }
 
-export interface Env extends DOBindings<typeof __DO_MANIFEST__> {
+/**
+ * AiEnv (src/lib/ai-provider.ts): AWS_REGION, BEDROCK_MODEL_ID, the IMDS
+ * binding on the server, and local-only AWS_* keys and BRAVE_API_KEY.
+ */
+export interface Env extends DOBindings<typeof __DO_MANIFEST__>, AiEnv {
   ASSETS: Fetcher
   /**
    * Platform service binding in production; deepspace dev supplies the URL

@@ -71,7 +71,7 @@ export function nights(dates: DateRange): number {
  */
 export const BOOKING_SITES = ['booking.com', 'expedia.com', 'kayak.com', 'skyscanner.com', 'trivago.com'] as const
 
-/** One web search: Exa's query plus an optional domain filter. */
+/** One web search: the query plus optional domain filters (src/lib/ai-provider.ts turns them into site: operators). */
 export interface SearchPlan {
   query: string
   numResults: number
@@ -175,31 +175,6 @@ export function lookupUserPrompt(ctx: HousingContext, input: { title: string; ur
   return `${tripLine(ctx)}\nResearch ${what} for this group from the search results below. Return exactly one option.\n\n<search_results>\n${resultsBlock(results)}\n</search_results>`
 }
 
-/** Reads Exa's results array, keeping only usable http(s) results. */
-export function readSearchResults(raw: unknown): SearchResult[] {
-  const data = (raw as { results?: unknown; data?: { results?: unknown } }) ?? {}
-  const list = Array.isArray(data.results) ? data.results : Array.isArray(data.data?.results) ? data.data.results : []
-  const out: SearchResult[] = []
-  for (const r of list as Array<Record<string, unknown>>) {
-    const url = typeof r.url === 'string' ? r.url : ''
-    if (!/^https?:\/\//i.test(url)) continue
-    const highlights = Array.isArray(r.highlights) ? r.highlights.filter((h) => typeof h === 'string').join(' … ') : ''
-    // Highlights are the price passages (src/actions/engine-ai.ts); keep them next to the page text.
-    const pageText = typeof r.text === 'string' ? r.text : ''
-    const text = pageText && highlights ? `${pageText}\nPrice and review mentions: ${highlights}` : pageText || highlights
-    out.push({ title: typeof r.title === 'string' ? r.title : url, url, text, image: pickImage(r) })
-  }
-  return out
-}
-
-/** A safe https image URL from one Exa result: its `image`, else its first `extras.imageLinks`. */
-function pickImage(r: Record<string, unknown>): string | null {
-  const extras = (r.extras ?? {}) as { imageLinks?: unknown }
-  const candidates = [r.image, ...(Array.isArray(extras.imageLinks) ? extras.imageLinks : [])]
-  for (const c of candidates) if (isSafeImageUrl(c)) return c
-  return null
-}
-
 export function isSafeImageUrl(u: unknown): u is string {
   if (typeof u !== 'string' || u.length > 1000) return false
   try {
@@ -228,41 +203,6 @@ export function attachImages(options: ResearchedOption[], results: SearchResult[
 export function perPersonShare(total: number | null | undefined, groupSize: number): number | null {
   if (total == null || !Number.isFinite(total) || total <= 0) return null
   return Math.max(1, Math.round(total / Math.max(1, groupSize)))
-}
-
-/**
- * Pulls the model's text out of the integration's reply. The integration's
- * output shape isn't documented (docs/integrations.md), so this accepts the
- * Messages API shape and a few likely wrappers; thinking blocks are skipped.
- */
-export function extractModelText(raw: unknown): string | null {
-  const seen = new Set<unknown>()
-  const visit = (v: unknown, depth: number): string | null => {
-    if (v == null || depth > 4 || seen.has(v)) return null
-    if (typeof v === 'string') return v
-    if (typeof v !== 'object') return null
-    seen.add(v)
-    if (Array.isArray(v)) {
-      const texts = v
-        .filter((b): b is { type?: string; text: string } => !!b && typeof b === 'object' && typeof (b as { text?: unknown }).text === 'string')
-        .filter((b) => b.type === undefined || b.type === 'text')
-        .map((b) => b.text)
-      return texts.length ? texts.join('') : null
-    }
-    const o = v as Record<string, unknown>
-    for (const key of ['content', 'data', 'message', 'output', 'result', 'response']) {
-      const found = visit(o[key], depth + 1)
-      if (found) return found
-    }
-    return typeof o.text === 'string' ? o.text : typeof o.completion === 'string' ? o.completion : null
-  }
-  return visit(raw, 0)
-}
-
-/** Top-level keys only, for logging an unrecognized reply without its content. */
-export function shapeOf(raw: unknown): string {
-  if (!raw || typeof raw !== 'object') return typeof raw
-  return Object.keys(raw as object).slice(0, 12).join(',')
 }
 
 const optionSchema = z.object({

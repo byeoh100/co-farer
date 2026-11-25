@@ -274,7 +274,7 @@ const suggestOptions: ActionHandler<Env> = async ({ userId, params, tools, env }
   if (capped) return capped
 
   const count = SUGGESTION_COUNT[g.module]
-  const outcome = await runResearch(tools, job)
+  const outcome = await runResearch(env, job)
   if (!outcome.ok) return fail(outcome.error, outcome.code)
 
   const existing = await tools.query<Row<OptionRow>>('options', { where: { boardId: g.board.recordId }, limit: 500 })
@@ -346,7 +346,7 @@ async function researchInto(
     await tools.update('options', optionId, { researchStatus: 'failed' })
     return capped
   }
-  const outcome = await runResearch(tools, job)
+  const outcome = await runResearch(env, job)
   const found = outcome.ok ? outcome.options[0] : undefined
   if (!found) {
     await tools.update('options', optionId, { researchStatus: 'failed' })

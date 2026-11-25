@@ -10,10 +10,10 @@ export const RESEARCH_CALL_CAP = 25
 export const SUGGESTION_COUNT = { housing: 5, activities: 10, food: 10 } as const
 
 /**
- * Model for the research step (anthropic/chat-completion). Claude Haiku 5.5:
- * the human asked for a cheaper model (it was Claude Opus 5.5). About 40×
- * cheaper per token ($0.10 / $0.50 per million vs $4 / $20), and DeepSpace
- * bills Haiku at standard pricing on the free tier. The task is reading
- * search results into checked JSON, which suits it.
+ * Model for the research step: Claude Haiku 5.5 on Amazon Bedrock
+ * (src/lib/ai-provider.ts), through the US inference profile, the only way
+ * it runs in us-east-2 (docs/MIGRATION.md, Phase 2a). BEDROCK_MODEL_ID
+ * overrides it. The human chose Haiku over Opus 5.5 for cost; the task is
+ * reading search results into checked JSON, which suits it.
  */
-export const RESEARCH_MODEL = 'claude-haiku-5-5'
+export const RESEARCH_MODEL = 'us.anthropic.claude-haiku-5-5'

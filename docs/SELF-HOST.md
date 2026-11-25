@@ -56,3 +56,59 @@ server actions and membership checks, presence, the cron room, app roles
   row from `name` and `email` when they first connect.
 - `OWNER_USER_ID` must be set: the cron task runs as that identity.
 - `--experimental` is needed for SQLite Durable Objects on local disk.
+
+## Phase 2a: AI and search on AWS (2026-11-25)
+
+Research no longer goes through DeepSpace's integration proxy.
+`src/actions/engine-ai.ts` calls only `search` and `complete` in
+`src/lib/ai-provider.ts`:
+
+| Call | Service | Credentials |
+| --- | --- | --- |
+| `search(env, plan)` | Brave Search API (`/res/v1/web/search`, up to 20 results, extra snippets, thumbnails) | Key from Parameter Store `/cofarer/brave-api-key` (cached for an hour); `BRAVE_API_KEY` overrides it for local development only |
+| `complete(env, req)` | Claude Haiku 5.5 on Amazon Bedrock, Converse API, through the US inference profile `us.anthropic.claude-haiku-5-5` (the only way it runs in us-east-2; approved 2026-11-25) | SigV4 with `aws4fetch`. On the server, the instance role through IMDSv2, reached only through the `IMDS` binding (169.254.169.254:80); locally, `AWS_*` variables from `npm run workerd -- --aws` |
+
+Unchanged: the prompts, the per-module site lists (booking sites for housing;
+TripAdvisor, AllTrails and Viator for activities; TripAdvisor and Yelp for
+food), the safety checks in `src/lib/research.ts` (no tools, page text wrapped
+as untrusted data, sources only from the search results, a missing price stays
+null), the local stand-in for `@deepspace.test` accounts, and the 25-call cap.
+
+How the search changed: Brave has no domain filters, so each plan's
+`includeDomains` becomes `(site:a OR site:b)` and `excludeDomains` becomes
+`-site:a`, inside Brave's 400-character limit. Brave returns snippets rather
+than Exa's page text and price highlights, so prices may be found less often
+("Price not found" stays the answer when none is stated). A pasted link Brave
+doesn't know is searched again as `site:<host>` plus the words in its path.
+Photos are Brave's proxied thumbnails (`imgs.search.brave.com`).
+
+Neither call throws: a failure is logged (status or error name, never content)
+and the user sees the polite "search failed" / "AI didn't answer" message,
+which fixes the Phase 1 HTTP 500.
+
+### Needed before a real Suggest works
+
+- Bedrock: Anthropic's one-time use-case form (Bedrock console, open Claude
+  Haiku 5.5 in the playground). Until then `get-foundation-model-availability`
+  shows `NOT_AUTHORIZED`.
+- A Brave Search API key, stored as SecureString `/cofarer/brave-api-key` in
+  us-east-2 (or exported as `BRAVE_API_KEY` for a local test).
+- Phase 3's instance role needs `bedrock:InvokeModel` on
+  `arn:aws:bedrock:us-east-2:<account>:inference-profile/us.anthropic.claude-haiku-5-5`
+  **and** `arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-5-5`
+  (the profile routes to us-east-1, us-east-2 and us-west-2), plus
+  `ssm:GetParameter` on `/cofarer/*` and `kms:Decrypt` for the SSM key.
+
+### Local test with the real AI
+
+The stand-in users (Alice and Bob Stub) always get the free fake AI. A real
+call needs a non-test account, which arrives with Cognito in 2b. Until then,
+real-AI testing is the unit tests' mocked Brave, SSM and Bedrock calls
+(`src/lib/ai-provider.test.ts`), plus one CLI check once access is granted:
+
+```sh
+aws bedrock-runtime converse --profile cofarer --region us-east-2 \
+  --model-id us.anthropic.claude-haiku-5-5 \
+  --messages '[{"role":"user","content":[{"text":"Say ok"}]}]' \
+  --inference-config '{"maxTokens":16}'
+```

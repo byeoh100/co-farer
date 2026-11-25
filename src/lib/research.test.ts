@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  attachImages, extractModelText, housingSearches, isBookingSite, isSafeImageUrl, lookupSearches, mergeResults, nights, parseResearchReply,
-  perPersonShare, pickTop, readSearchResults, shapeOf, suggestUserPrompt,
+  attachImages, housingSearches, isBookingSite, isSafeImageUrl, lookupSearches, mergeResults, nights, parseResearchReply,
+  perPersonShare, pickTop, suggestUserPrompt,
 } from './research'
 
 const ctx = { destination: 'Cachuma Lake', dates: { start: '2027-03-19', end: '2027-03-21' }, groupSize: 6, priceBand: { perPerson: 150 } }
@@ -47,39 +47,6 @@ describe('queries and prompts', () => {
   })
 })
 
-describe('readSearchResults', () => {
-  it('keeps the price highlights next to the page text', () => {
-    const [r] = readSearchResults({ results: [{ title: 'A', url: 'https://a.example', text: 'A lodge.', highlights: ['From $129 per night'] }] })
-    expect(r.text).toBe('A lodge.\nPrice and review mentions: From $129 per night')
-  })
-  it('keeps http(s) results and uses highlights when there is no text', () => {
-    const r = readSearchResults({ results: [
-      { title: 'A', url: 'https://a.example', text: 'hello' },
-      { title: 'B', url: 'https://b.example', highlights: ['one', 'two'] },
-      { title: 'C', url: 'javascript:alert(1)' },
-    ] })
-    expect(r).toEqual([
-      { title: 'A', url: 'https://a.example', text: 'hello', image: null },
-      { title: 'B', url: 'https://b.example', text: 'one … two', image: null },
-    ])
-    expect(readSearchResults(null)).toEqual([])
-  })
-})
-
-describe('extractModelText', () => {
-  it('reads the Messages API shape and skips thinking blocks', () => {
-    expect(extractModelText({ content: [{ type: 'thinking', thinking: '' }, { type: 'text', text: '{"a":1}' }] })).toBe('{"a":1}')
-  })
-  it('reads common wrappers', () => {
-    expect(extractModelText({ data: { content: [{ type: 'text', text: 'x' }] } })).toBe('x')
-    expect(extractModelText({ success: true, data: { text: 'y' } })).toBe('y')
-    expect(extractModelText({ nothing: 1 })).toBeNull()
-  })
-  it('describes a shape without its content', () => {
-    expect(shapeOf({ id: 'secret', model: 'm' })).toBe('id,model')
-  })
-})
-
 describe('parseResearchReply', () => {
   const reply = (options: unknown[]) => `Here you go:\n${JSON.stringify({ options })}\nThanks`
   it('keeps valid options and finds JSON inside other text', () => {
@@ -122,12 +89,10 @@ describe('photos and per-person share', () => {
     expect(attachImages([opt('https://lake.example/yurts/', [allowed[0]])], results)[0].imageUrl).toBe('https://img.example/yurt.jpg')
     expect(attachImages([opt(null, ['https://camp.example/loop-b'])], results)[0].imageUrl).toBeNull()
   })
-  it('reads https images only, from image or extras.imageLinks', () => {
-    const read = readSearchResults({ results: [
-      { url: 'https://a.example', image: 'http://insecure.example/x.jpg', extras: { imageLinks: ['https://a.example/p.jpg'] } },
-      { url: 'https://b.example', image: 'javascript:alert(1)' },
-    ] })
-    expect(read.map((r) => r.image)).toEqual(['https://a.example/p.jpg', null])
+  it('accepts https image URLs only', () => {
+    expect(isSafeImageUrl('https://a.example/p.jpg')).toBe(true)
+    expect(isSafeImageUrl('http://insecure.example/x.jpg')).toBe(false)
+    expect(isSafeImageUrl('javascript:alert(1)')).toBe(false)
     expect(isSafeImageUrl('data:image/png;base64,xx')).toBe(false)
   })
   it('splits the total across the current group', () => {

@@ -18,6 +18,11 @@ const config :Workerd.Config = (
     (name = "do-storage", disk = (path = ".workerd-data/do", writable = true)),
     # Outbound HTTPS (AI, search, auth providers in later phases).
     (name = "internet", network = (allow = ["public"], tlsOptions = (trustBrowserCas = true))),
+    # The EC2 instance metadata service (IMDSv2), for the instance role's
+    # credentials (src/lib/ai-provider.ts). Only this one address, through
+    # its own binding: "internet" above still refuses link-local addresses.
+    # Nothing answers it locally, where the AWS_* variables are used instead.
+    (name = "imds", external = (address = "169.254.169.254:80", http = ())),
   ],
   sockets = [
     (name = "http", address = "*:8080", http = (), service = "main"),
@@ -56,6 +61,17 @@ const appWorker :Workerd.Worker = (
     (name = "AUTH_JWT_PUBLIC_KEY", fromEnvironment = "AUTH_JWT_PUBLIC_KEY"),
     (name = "AUTH_JWT_ISSUER", fromEnvironment = "AUTH_JWT_ISSUER"),
     (name = "OWNER_USER_ID", fromEnvironment = "OWNER_USER_ID"),
+
+    # AI research (Phase 2a): Bedrock and Brave through src/lib/ai-provider.ts.
+    (name = "IMDS", service = "imds"),
+    (name = "AWS_REGION", fromEnvironment = "AWS_REGION"),
+    (name = "BEDROCK_MODEL_ID", fromEnvironment = "BEDROCK_MODEL_ID"),
+    # Local development only; never set on the server, which uses the
+    # instance role and Parameter Store (/cofarer/brave-api-key).
+    (name = "AWS_ACCESS_KEY_ID", fromEnvironment = "AWS_ACCESS_KEY_ID"),
+    (name = "AWS_SECRET_ACCESS_KEY", fromEnvironment = "AWS_SECRET_ACCESS_KEY"),
+    (name = "AWS_SESSION_TOKEN", fromEnvironment = "AWS_SESSION_TOKEN"),
+    (name = "BRAVE_API_KEY", fromEnvironment = "BRAVE_API_KEY"),
 
     # DeepSpace platform plumbing, stubbed (Phase 2 removes these).
     (name = "AUTH_WORKER_URL", fromEnvironment = "AUTH_WORKER_URL"),

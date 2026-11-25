@@ -1,23 +1,22 @@
 /**
- * The two AI calls of the research step: `exa/search`, then
- * `anthropic/chat-completion` with no tools (PLAN.md §3). Request shapes
- * come from docs/integrations.md.
+ * The two AI calls of the research step (PLAN.md §3), through
+ * src/lib/ai-provider.ts only: `search` (Brave), then `complete` (Claude
+ * Haiku 5.5 on Amazon Bedrock) with no tools (docs/MIGRATION.md, Phase 2a).
  *
  * Local test stand-in: when the server is local (ALLOW_DEBUG_ROUTES is
- * "true", set only by `deepspace dev`/`test`) AND the caller is a
- * @deepspace.test account, deterministic fake results replace both calls,
- * so automated tests cost nothing. Real accounts, and the live site, always
- * use the real AI.
+ * "true", set only by `deepspace dev`/`test` and `npm run workerd`) AND the
+ * caller is a @deepspace.test account, deterministic fake results replace
+ * both calls, so automated tests cost nothing. Real accounts, and the live
+ * site, always use the real AI.
  */
 
-import type { ActionTools } from 'deepspace/worker'
+import { complete, search } from '../lib/ai-provider'
 import type { Env } from '../../worker'
-import { RESEARCH_MODEL } from '../lib/limits'
 import { isLocalTestAccount } from './local-test'
 import type { EngineModule } from '../schemas/engine-schemas'
 import type { DietaryTag } from '../lib/food'
 import {
-  attachImages, extractModelText, mergeResults, parseResearchReply, readSearchResults, shapeOf,
+  attachImages, mergeResults, parseResearchReply,
   type ReplyShape, type ResearchedOption, type SearchPlan, type SearchResult,
 } from '../lib/research'
 
@@ -25,6 +24,13 @@ export type AiOutcome = { ok: true; options: ResearchedOption[] } | { ok: false;
 
 /** The AI stand-in runs only for local test accounts (src/actions/local-test.ts). */
 export const shouldUseFakeAi = isLocalTestAccount
+
+/**
+ * Output budget for one reply. Bedrock's Converse runs without extended
+ * thinking unless asked, so this covers the JSON alone (10 options is about
+ * 3,000 tokens); set explicitly so Bedrock doesn't reserve the model maximum.
+ */
+const MAX_REPLY_TOKENS = 8000
 
 /** One research call: the searches, the prompts, and how to read the reply. */
 export interface ResearchJob {
@@ -39,12 +45,14 @@ export interface ResearchJob {
 }
 
 /** Search, then ask the model to turn the results into checked options. */
-export async function runResearch(tools: ActionTools, job: ResearchJob): Promise<AiOutcome> {
-  const results = job.fake ? fakeSearch(job.searches[0].query, job.module) : await searchAll(tools, job.searches)
+export async function runResearch(env: Env, job: ResearchJob): Promise<AiOutcome> {
+  const results = job.fake ? fakeSearch(job.searches[0].query, job.module) : await searchAll(env, job.searches)
   if (!results) return { ok: false, error: 'The web search failed. Please try again.', code: 'search_failed' }
   if (results.length === 0) return { ok: false, error: 'The search found nothing useful. Try a different link or name.', code: 'no_results' }
 
-  const text = job.fake ? fakeModelReply(results, job.module, job.fakeNeeds ?? []) : await askModel(tools, job.system, job.userPrompt(results))
+  const text = job.fake
+    ? fakeModelReply(results, job.module, job.fakeNeeds ?? [])
+    : await complete(env, { system: job.system, messages: [{ role: 'user', content: job.userPrompt(results) }], maxTokens: MAX_REPLY_TOKENS })
   if (text == null) return { ok: false, error: 'The AI didn’t answer. Please try again.', code: 'model_failed' }
   const parsed = parseResearchReply(text, results.map((r) => r.url), job.shape)
   if (!parsed) {
@@ -55,51 +63,10 @@ export async function runResearch(tools: ActionTools, job: ResearchJob): Promise
 }
 
 /** Runs the searches together; fails only if every one of them failed. */
-async function searchAll(tools: ActionTools, searches: SearchPlan[]): Promise<SearchResult[] | null> {
-  const lists = await Promise.all(searches.map((plan) => search(tools, plan)))
+async function searchAll(env: Env, searches: SearchPlan[]): Promise<SearchResult[] | null> {
+  const lists = await Promise.all(searches.map((plan) => search(env, plan)))
   if (lists.every((l) => l == null)) return null
   return mergeResults(lists.map((l) => l ?? []))
-}
-
-async function search(tools: ActionTools, plan: SearchPlan): Promise<SearchResult[] | null> {
-  const res = await tools.integration('exa/search', {
-    query: plan.query,
-    numResults: plan.numResults,
-    type: 'auto',
-    ...(plan.includeDomains ? { includeDomains: plan.includeDomains } : {}),
-    ...(plan.excludeDomains ? { excludeDomains: plan.excludeDomains } : {}),
-    contents: {
-      text: { maxCharacters: 1500 },
-      // The passages that mention prices and ratings, which page text often cuts off.
-      highlights: { query: 'price per night, total price, rates, guest rating and reviews', numSentences: 2, highlightsPerUrl: 3 },
-      // imageLinks: a photo of the place when the page has one (shown on its card).
-      extras: { imageLinks: 1 },
-    },
-  })
-  if (!res.success) {
-    console.error(`[research] exa/search failed: ${res.error}`)
-    return null
-  }
-  return readSearchResults(res.data)
-}
-
-async function askModel(tools: ActionTools, system: string, userPrompt: string): Promise<string | null> {
-  const res = await tools.integration('anthropic/chat-completion', {
-    model: RESEARCH_MODEL,
-    // Thinking is on by default for this model and counts toward max_tokens.
-    // (DeepSpace's integration takes no effort setting: model, max_tokens, system, messages.)
-    max_tokens: 16000,
-    system,
-    messages: [{ role: 'user', content: userPrompt }],
-  })
-  if (!res.success) {
-    console.error(`[research] anthropic/chat-completion failed: ${res.error}`)
-    return null
-  }
-  const text = extractModelText(res.data)
-  // Log the reply's shape (keys only, never content) if we can't read it.
-  if (text == null) console.error(`[research] unrecognized model reply shape: ${shapeOf(res.data)}`)
-  return text
 }
 
 // ── Local test stand-in ──────────────────────────────────────────────────
