@@ -16,3 +16,6 @@ src/modals.tsx
 
 # macOS
 .DS_Store
+
+# Phase 1 self-host: local workerd data and the stub sign-in key (never commit)
+.workerd-data/

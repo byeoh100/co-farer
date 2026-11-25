@@ -33,6 +33,7 @@ import {
   resolveAuth,
 } from './src/server/http-routes.js'
 import { registerRealtimeRoutes } from './src/server/realtime-routes.js'
+import { registerStubAuthRoutes } from './src/server/stub-auth.js'
 
 // Dynamic deploy reads this manifest to create the app's DO bindings.
 export const __DO_MANIFEST__ = [
@@ -118,6 +119,10 @@ export interface Env extends DOBindings<typeof __DO_MANIFEST__> {
    * an authenticated app owner/admin. deepspace dev/test set it locally.
    */
   ALLOW_DEBUG_ROUTES?: string
+  /** Phase 1 self-host only (src/server/stub-auth.ts): exactly "true" turns on the stand-in sign-in. */
+  LOCAL_STUB_AUTH?: string
+  /** Phase 1 self-host only: the stand-in's ES256 private key (PKCS#8 PEM). Never set on a server. */
+  STUB_AUTH_PRIVATE_KEY?: string
 }
 
 export type AppContext = { Bindings: Env }
@@ -134,6 +139,8 @@ app.use('*', async (c, next) => {
 
 // Registration order is part of the worker contract. The wildcard auth route
 // follows its special cases, AI precedes platform proxies, and static is last.
+// Phase 1 (docs/MIGRATION.md): local stand-in sign-in, inert unless LOCAL_STUB_AUTH=true.
+registerStubAuthRoutes(app)
 registerAuthAndIntegrationRoutes(app)
 registerRealtimeRoutes(app)
 registerActionRoutes(app, resolveAuth)
