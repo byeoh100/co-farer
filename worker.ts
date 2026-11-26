@@ -35,6 +35,7 @@ import {
 import { registerRealtimeRoutes } from './src/server/realtime-routes.js'
 import { registerStubAuthRoutes } from './src/server/stub-auth.js'
 import type { AiEnv } from './src/lib/ai-provider.js'
+import { registerCognitoAuthRoutes, type CognitoEnv } from './src/server/cognito-auth.js'
 
 // Dynamic deploy reads this manifest to create the app's DO bindings.
 export const __DO_MANIFEST__ = [
@@ -87,8 +88,10 @@ export class AppJobRoom extends JobRoom<Env> {
 /**
  * AiEnv (src/lib/ai-provider.ts): AWS_REGION, BEDROCK_MODEL_ID, the IMDS
  * binding on the server, and local-only AWS_* keys and BRAVE_API_KEY.
+ * CognitoEnv (src/server/cognito-auth.ts): COGNITO_*, APP_URL, and the
+ * local-only APP_JWT_PRIVATE_KEY.
  */
-export interface Env extends DOBindings<typeof __DO_MANIFEST__>, AiEnv {
+export interface Env extends DOBindings<typeof __DO_MANIFEST__>, AiEnv, Omit<CognitoEnv, 'AUTH_JWT_ISSUER'> {
   ASSETS: Fetcher
   /**
    * Platform service binding in production; deepspace dev supplies the URL
@@ -146,6 +149,8 @@ app.use('*', async (c, next) => {
 // follows its special cases, AI precedes platform proxies, and static is last.
 // Phase 1 (docs/MIGRATION.md): local stand-in sign-in, inert unless LOCAL_STUB_AUTH=true.
 registerStubAuthRoutes(app)
+// Phase 2b: Cognito sign-in. Inert unless COGNITO_CLIENT_ID is set.
+registerCognitoAuthRoutes(app)
 registerAuthAndIntegrationRoutes(app)
 registerRealtimeRoutes(app)
 registerActionRoutes(app, resolveAuth)

@@ -6,8 +6,16 @@
  * sets a housing deadline so the next cron run can lock it.
  *
  *   node scripts/workerd-smoke.mjs        (prints the trip id at the end)
+ *
+ * Phase 2b: `--cognito <users.json>` signs both users in through the real
+ * Amazon Cognito page instead of the stand-in (the app's sign-in dialog →
+ * Cognito managed login → password), then also checks sign-out. The file is
+ * [{ email, password, name }, …] for two existing users in the pool; use
+ * @deepspace.test emails so the local server gives them the free AI
+ * stand-in. Keep that file out of the repo.
  */
 
+import { readFileSync } from 'node:fs'
 import { chromium } from 'playwright'
 
 const BASE = process.env.BASE ?? 'http://localhost:8080'
@@ -25,13 +33,39 @@ async function check(label, fn) {
   }
 }
 
+const cognitoFile = process.argv.includes('--cognito') ? process.argv[process.argv.indexOf('--cognito') + 1] : null
+const cognitoUsers = cognitoFile ? JSON.parse(readFileSync(cognitoFile, 'utf8')) : null
+const NAMES = cognitoUsers ? { alice: cognitoUsers[0].name, bob: cognitoUsers[1].name } : { alice: 'Alice Stub', bob: 'Bob Stub' }
+
 const browser = await chromium.launch()
 async function signIn(user) {
   const context = await browser.newContext()
   const page = await context.newPage()
   page.on('pageerror', (e) => console.log(`    [${user} page error] ${e.message}`))
-  await page.goto(`${BASE}/api/auth/stub-login?user=${user}`)
-  await page.waitForURL(/\/trips$/, { timeout: 15_000 })
+  if (!cognitoUsers) {
+    await page.goto(`${BASE}/api/auth/stub-login?user=${user}`)
+    await page.waitForURL(/\/trips$/, { timeout: 15_000 })
+    return page
+  }
+  // The real path: the app's dialog → Cognito managed login → password.
+  const u = cognitoUsers[user === 'alice' ? 0 : 1]
+  await page.goto(`${BASE}/trips`)
+  await page.getByRole('button', { name: 'Sign in' }).first().click({ timeout: 15_000 })
+  await page.getByTestId('sign-in-email').click()
+  await page.locator('input[name=username]').fill(u.email, { timeout: 20_000 })
+  await page.getByRole('button', { name: 'Next' }).click()
+  // Cognito offers the email code first; this test uses the password instead.
+  const other = page.getByRole('button', { name: 'Try another way' })
+  const pw = page.locator('input[type=password]')
+  await Promise.race([other.waitFor({ timeout: 20_000 }), pw.waitFor({ timeout: 20_000 })])
+  if (await other.isVisible()) {
+    await other.click()
+    await page.locator('input[type=radio][value=USER_PASSWORD_AUTH]').check({ force: true, timeout: 15_000 })
+    await page.getByRole('button', { name: 'Continue' }).click()
+  }
+  await pw.first().fill(u.password, { timeout: 15_000 })
+  await page.locator('button[type=submit]').filter({ hasText: /sign in|continue|next/i }).first().click()
+  await page.waitForURL(new RegExp(`^${BASE}/trips`), { timeout: 30_000 })
   return page
 }
 async function action(page, name, params) {
@@ -87,8 +121,8 @@ await check('Bob sets a budget (public by default); Alice sees it live', async (
 
 await check('presence: Alice sees Bob online (colored circle)', async () => {
   await a.waitForFunction(
-    () => [...document.querySelectorAll('[data-testid="members-stack"] [title]')].some((el) => /Bob Stub · online/.test(el.getAttribute('title') ?? '')),
-    null,
+    (name) => [...document.querySelectorAll('[data-testid="members-stack"] [title]')].some((el) => new RegExp(`${name} · online`).test(el.getAttribute('title') ?? '')),
+    NAMES.bob,
     { timeout: 15_000 },
   )
 })
@@ -127,6 +161,22 @@ await check('housing deadline set 60 seconds ahead (the cron task locks it later
   const res = await action(a, 'setDeadline', { tripId, module: 'housing', seconds: 60 })
   if (!res.success) throw new Error(JSON.stringify(res))
 })
+
+if (cognitoUsers) {
+  await check('signed in as the Cognito users (session, app token)', async () => {
+    for (const [p, u] of [[a, cognitoUsers[0]], [b, cognitoUsers[1]]]) {
+      const s = await p.evaluate(async () => (await fetch('/api/auth/get-session')).json())
+      if (s?.user?.email !== u.email || s.user.name !== u.name) throw new Error(`session: ${JSON.stringify(s?.user)}`)
+    }
+  })
+  await check('sign out ends the session (token refused afterwards)', async () => {
+    await b.goto(`${BASE}/auth/logout`)
+    await b.waitForURL(new RegExp(`^${BASE}/`), { timeout: 20_000 })
+    const status = await b.evaluate(async () => (await fetch('/api/auth/token', { method: 'POST' })).status)
+    if (status !== 401) throw new Error(`token after sign-out: HTTP ${status}`)
+    if ((await b.evaluate(async () => (await fetch('/api/auth/get-session')).json())) !== null) throw new Error('session still there')
+  })
+}
 
 console.log(`\ntrip: ${tripId}`)
 await browser.close()

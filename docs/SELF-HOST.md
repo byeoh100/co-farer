@@ -88,11 +88,17 @@ which fixes the Phase 1 HTTP 500.
 
 ### Needed before a real Suggest works
 
+- **Blocker (2026-11-25):** every Bedrock model call on this account fails with
+  `ValidationException: Operation not allowed`, including Amazon Nova Micro and
+  the console playground, and `PutUseCaseForModelAccess` answers "Your account
+  is not authorized to perform this action. Please create a support case."
+  Bedrock is on the Free plan's supported list, so this is a new-account hold
+  that only AWS support can lift (an "Account and billing" case).
+
 - Bedrock: Anthropic's one-time use-case form (Bedrock console, open Claude
   Haiku 5.5 in the playground). Until then `get-foundation-model-availability`
   shows `NOT_AUTHORIZED`.
-- A Brave Search API key, stored as SecureString `/cofarer/brave-api-key` in
-  us-east-2 (or exported as `BRAVE_API_KEY` for a local test).
+- ~~A Brave Search API key~~: stored as SecureString `/cofarer/brave-api-key` in us-east-2 (done 2026-11-25).
 - Phase 3's instance role needs `bedrock:InvokeModel` on
   `arn:aws:bedrock:us-east-2:<account>:inference-profile/us.anthropic.claude-haiku-5-5`
   **and** `arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-5-5`
@@ -112,3 +118,100 @@ aws bedrock-runtime converse --profile cofarer --region us-east-2 \
   --messages '[{"role":"user","content":[{"text":"Say ok"}]}]' \
   --inference-config '{"maxTokens":16}'
 ```
+
+## Decisions (2026-11-25)
+
+Answers to the open questions in docs/MIGRATION.md:
+
+| Question | Decision |
+| --- | --- |
+| Google sign-in, or email codes only? | **Google sign-in** (with Cognito managed login) |
+| Profile picture uploads in v1? | **Initials only** for now. 2c is on hold; the initial-on-a-color fallback already exists. |
+| Domain | **co-farer.com** (unregistered as of 2026-11-25, per Verisign RDAP). Route 53 Domains refuses Free plan accounts, so register it at another registrar, or after switching to the Paid plan. DNS only needs an A record to the Elastic IP (Phase 3). |
+| Terraform or CDK? | Not decided yet (Phase 3) |
+| Budget | "Co-farer monthly", $5: alerts at 85% and 100% actual, and 100% forecast |
+
+## Phase 2b: sign-in with Cognito (2026-11-25)
+
+### What's in AWS (us-east-2, all free at this size)
+
+| Piece | Value |
+| --- | --- |
+| User pool | `cofarer` (`us-east-2_DHqzYR5y0`), Essentials tier. Email is the username; sign-in by a one-time email code or a password (no password needed); self sign-up on; Cognito's own email sender (50 emails a day). |
+| Sign-in domain | `https://co-farer.auth.us-east-2.amazoncognito.com`, managed login v2 with Cognito's default look |
+| App client | `cofarer-web` (`3ofnp5fam86b8s3j10barba1dl`): public (no secret), code grant + PKCE, scopes `openid email profile`; callbacks `http://localhost:8080/auth/callback` and `https://co-farer.com/auth/callback`; logout URLs `http://localhost:8080/` and `https://co-farer.com/`; ID and access tokens 15 minutes, refresh 30 days, revocation on |
+| Parameter Store | `/cofarer/app-jwt-private-key` (SecureString, the app's ES256 signing key), `/cofarer/app-jwt-public-key`, `/cofarer/cognito-user-pool-id`, `/cofarer/cognito-client-id`, `/cofarer/cognito-domain` |
+
+These were made with the CLI; Phase 3 imports them into the infrastructure code.
+
+### How it works
+
+`src/server/cognito-auth.ts`. The browser keeps the SDK's own session
+hooks, which only call same-origin `/api/auth/*` routes; those are now
+answered from a Cognito session:
+
+1. **Sign in** (`SignInDialog`: "Continue with Google" or "Sign in with an
+   email code") → `/auth/login` → Cognito managed login, with PKCE and a
+   state cookie.
+2. **`/auth/callback`**: the server exchanges the code, verifies the Cognito
+   ID token with `jose` against the pool's public keys (RS256, issuer,
+   audience, `token_use=id`), and sets an encrypted HttpOnly session cookie
+   (AES-GCM, key derived from the app's signing key) that holds the Cognito
+   refresh token. JavaScript never sees a Cognito token.
+3. **`/api/auth/token`** mints the app's own **ES256** token (15 minutes;
+   `sub`, `name`, `email`, `iss`), signed with `/cofarer/app-jwt-private-key`.
+   Every request is checked by the SDK's unchanged `verifyJwt` against
+   `AUTH_JWT_PUBLIC_KEY`. At most every 15 minutes this re-checks the account
+   with Cognito (refresh grant): a disabled or signed-out account is refused.
+4. **Sign out** (`/auth/logout`) revokes the refresh token, clears the
+   cookie, and ends the Cognito session so the next sign-in can pick another
+   account.
+
+The `users` row is created by the data room from the token's `name` and
+`email` on first connect (checked: presence shows the Cognito name). User IDs
+are Cognito `sub` values, so the new site starts with no trips. Profile
+pictures: initials only (`image` is always null).
+
+Differs from the spec: no `POST /auth/exchange` and no new browser auth
+provider. The code exchange happens on the server instead, so the refresh
+token stays in an HttpOnly cookie rather than browser storage, and the SDK's
+existing hooks keep working unchanged.
+
+### Running it locally
+
+`npm run build && npm run workerd`, then **Sign in** on http://localhost:8080.
+Locally the app signs its tokens with the local key in `.workerd-data`, so no
+AWS access is needed to sign in. The Phase 1 stand-in users still work at
+`/api/auth/stub-login`, side by side.
+
+`node scripts/workerd-smoke.mjs --cognito users.json` runs the two-browser
+check with two real pool users signed in through Cognito's page (see the
+script for the file format; it passed on 2026-11-25 with two temporary
+`@deepspace.test` users, since deleted).
+
+### Server environment (Phase 3)
+
+`COGNITO_DOMAIN`, `COGNITO_CLIENT_ID`, `COGNITO_USER_POOL_ID` (from the
+`/cofarer/cognito-*` parameters), `APP_URL=https://co-farer.com`,
+`AUTH_JWT_PUBLIC_KEY` (from `/cofarer/app-jwt-public-key`),
+`AUTH_JWT_ISSUER=https://co-farer.com`. Never `APP_JWT_PRIVATE_KEY`,
+`LOCAL_STUB_AUTH` or `ALLOW_DEBUG_ROUTES`. The instance role also needs
+`ssm:GetParameter` on `/cofarer/app-jwt-private-key`.
+
+### Google sign-in: to finish (needs you)
+
+Until this is done, "Continue with Google" lands on a Cognito error page;
+email codes work.
+
+1. In Google Cloud Console, create a project, then **APIs & Services → OAuth
+   consent screen**: External, app name Co-farer, your support email, scopes
+   `openid`, `email`, `profile`, and add `amazoncognito.com` (and later
+   `co-farer.com`) as authorized domains. While it's in "Testing", add your
+   friends' Gmail addresses as test users, or publish it.
+2. **Credentials → Create credentials → OAuth client ID → Web application**:
+   - Authorized JavaScript origin: `https://co-farer.auth.us-east-2.amazoncognito.com`
+   - Authorized redirect URI: `https://co-farer.auth.us-east-2.amazoncognito.com/oauth2/idpresponse`
+3. Store the client secret yourself:
+   `aws ssm put-parameter --profile cofarer --region us-east-2 --name /cofarer/google-client-secret --type SecureString --value 'SECRET'`
+4. Send the client ID (not secret) to Claude, who adds Google to the pool
+   and the app client.

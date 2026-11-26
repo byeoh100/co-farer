@@ -7,6 +7,9 @@
  * the browser's auth client calls (`get-session`, `token`) for two fake
  * users, and mints short-lived ES256 tokens with a local key pair, so the
  * SDK's normal `verifyJwt` checks them like real ones.
+ *
+ * Without a stub cookie every route passes through, so the real Cognito
+ * sign-in (src/server/cognito-auth.ts) works alongside it locally.
  */
 
 import type { Hono } from 'hono'
@@ -78,10 +81,11 @@ export function registerStubAuthRoutes(app: Hono<AppContext>): void {
     return c.html(`<!doctype html><meta charset="utf-8"><title>Local sign-in</title><h1>Local sign-in (Phase 1 stub)</h1><ul>${links}</ul>`)
   })
 
+  // With no stub cookie these pass through, so Cognito sign-in (2b) works side by side locally.
   app.get('/api/auth/get-session', (c, next) => {
     if (!stubAuthEnabled(c.env)) return next()
     const user = currentUser(c.req.raw)
-    if (!user) return c.json(null)
+    if (!user) return c.env.COGNITO_CLIENT_ID ? next() : c.json(null)
     const now = new Date().toISOString()
     return c.json({
       session: { id: `stub-session-${user.id}`, userId: user.id, expiresAt: new Date(Date.now() + 86_400_000).toISOString(), createdAt: now, updatedAt: now },
@@ -92,12 +96,12 @@ export function registerStubAuthRoutes(app: Hono<AppContext>): void {
   app.post('/api/auth/token', async (c, next) => {
     if (!stubAuthEnabled(c.env)) return next()
     const user = currentUser(c.req.raw)
-    if (!user) return c.json({ error: 'Not signed in' }, 401)
+    if (!user) return c.env.COGNITO_CLIENT_ID ? next() : c.json({ error: 'Not signed in' }, 401)
     return c.json({ token: await mintToken(c.env, user) })
   })
 
   app.all('/api/auth/sign-out', (c, next) => {
-    if (!stubAuthEnabled(c.env)) return next()
+    if (!stubAuthEnabled(c.env) || !currentUser(c.req.raw)) return next()
     return new Response(JSON.stringify({ success: true }), {
       headers: { 'Content-Type': 'application/json', 'Set-Cookie': `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0` },
     })

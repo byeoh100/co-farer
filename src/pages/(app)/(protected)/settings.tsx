@@ -7,7 +7,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { signOut, useAuthStatus, useQuery, useR2Files, useUser } from 'deepspace'
+import { useAuthStatus, useQuery, useR2Files, useUser } from 'deepspace'
+import { signOutEverywhere } from '@/components/SignInDialog'
 import { Camera, Trash2 } from 'lucide-react'
 import { Button, Input, Label, useToast } from '@/components/ui'
 import { callAction } from '../../../lib/actions-client'
@@ -117,7 +118,7 @@ export default function SettingsPage() {
             <Button onClick={save} loading={saving} disabled={!name?.trim() || isUploading} data-testid="save-profile">
               Save profile
             </Button>
-            <Button variant="secondary" onClick={() => signOut()}>
+            <Button variant="secondary" onClick={signOutEverywhere}>
               Sign out
             </Button>
           </div>

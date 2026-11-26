@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Runs Co-farer on plain workerd locally (docs/MIGRATION.md, Phase 1).
+ * Runs Co-farer on plain workerd locally (docs/MIGRATION.md, Phases 1–2).
  *
  *   npm run build && npm run workerd      → http://localhost:8080
  *
@@ -66,6 +66,15 @@ const env = {
   ALLOW_DEBUG_ROUTES: 'true',
   LOCAL_STUB_AUTH: 'true',
   STUB_AUTH_PRIVATE_KEY: keys.privatePem,
+  // Phase 2b: real Cognito sign-in alongside the stub (public identifiers, not
+  // secrets; also in Parameter Store under /cofarer/cognito-*). Locally the app
+  // signs its own tokens with the local key above, so no AWS access is needed
+  // to sign in. Set COGNITO_CLIENT_ID= (empty) to turn Cognito off.
+  COGNITO_DOMAIN: process.env.COGNITO_DOMAIN ?? 'https://co-farer.auth.us-east-2.amazoncognito.com',
+  COGNITO_CLIENT_ID: process.env.COGNITO_CLIENT_ID ?? '3ofnp5fam86b8s3j10barba1dl',
+  COGNITO_USER_POOL_ID: process.env.COGNITO_USER_POOL_ID ?? 'us-east-2_DHqzYR5y0',
+  APP_URL: 'http://localhost:8080',
+  APP_JWT_PRIVATE_KEY: keys.privatePem,
 }
 
 const userArgs = process.argv.slice(2)
@@ -100,7 +109,7 @@ const args = [
   `--directory-path=do-storage=${doDir}`,
   ...userArgs.filter((a) => a !== '--aws'),
 ]
-console.log('Co-farer on workerd → http://localhost:8080   (sign in: http://localhost:8080/api/auth/stub-login)')
+console.log('Co-farer on workerd → http://localhost:8080   (Sign in → Cognito; test users: http://localhost:8080/api/auth/stub-login)')
 const child = spawn(bin, args, { cwd: root, env, stdio: 'inherit' })
 child.on('exit', (code, signal) => process.exit(code ?? (signal ? 1 : 0)))
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => child.kill(sig))

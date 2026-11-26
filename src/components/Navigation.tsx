@@ -1,6 +1,6 @@
 /**
  * Top nav — minimal placeholder bar wired to the app's mechanisms:
- * nav.ts-driven links (with role/dev filtering), sign-in via <AuthOverlay>,
+ * nav.ts-driven links (with role/dev filtering), sign-in via <SignInDialog> (Cognito),
  * and sign-out. Restyle or rebuild it freely; keep the data-testid hooks
  * (`app-navigation`, `nav-sign-in-button`, `nav-user-name`, `nav-user-email`)
  * — the shipped tests rely on them. `nav-user-email` is the one that carries
@@ -10,7 +10,8 @@
 
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { AuthOverlay, useAuthProfileReady, signOut } from 'deepspace'
+import { useAuthProfileReady } from 'deepspace'
+import { SignInDialog, signOutEverywhere } from './SignInDialog'
 import { ChevronDown, LogOut, Menu, X } from 'lucide-react'
 import type { Role } from '../constants'
 import { nav } from '../nav'
@@ -125,7 +126,7 @@ export default function Navigation() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut()}>
+                <DropdownMenuItem onClick={signOutEverywhere}>
                   <LogOut aria-hidden />
                   Sign out
                 </DropdownMenuItem>
@@ -158,7 +159,7 @@ export default function Navigation() {
         )}
       </nav>
 
-      {showAuthModal && <AuthOverlay onClose={() => setShowAuthModal(false)} />}
+      <SignInDialog open={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </>
   )
 }

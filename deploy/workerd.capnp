@@ -62,6 +62,15 @@ const appWorker :Workerd.Worker = (
     (name = "AUTH_JWT_ISSUER", fromEnvironment = "AUTH_JWT_ISSUER"),
     (name = "OWNER_USER_ID", fromEnvironment = "OWNER_USER_ID"),
 
+    # Cognito sign-in (Phase 2b, src/server/cognito-auth.ts). Public identifiers,
+    # not secrets. The app's signing key comes from Parameter Store
+    # (/cofarer/app-jwt-private-key); APP_JWT_PRIVATE_KEY is local development only.
+    (name = "COGNITO_DOMAIN", fromEnvironment = "COGNITO_DOMAIN"),
+    (name = "COGNITO_CLIENT_ID", fromEnvironment = "COGNITO_CLIENT_ID"),
+    (name = "COGNITO_USER_POOL_ID", fromEnvironment = "COGNITO_USER_POOL_ID"),
+    (name = "APP_URL", fromEnvironment = "APP_URL"),
+    (name = "APP_JWT_PRIVATE_KEY", fromEnvironment = "APP_JWT_PRIVATE_KEY"),
+
     # AI research (Phase 2a): Bedrock and Brave through src/lib/ai-provider.ts.
     (name = "IMDS", service = "imds"),
     (name = "AWS_REGION", fromEnvironment = "AWS_REGION"),
