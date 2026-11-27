@@ -46,9 +46,9 @@ variable "bedrock_model_id" {
 }
 
 variable "github_repo" {
-  description = "GitHub repository allowed to deploy (owner/name)."
+  description = "GitHub repository allowed to deploy, as GitHub's OIDC subject names it: owner@ownerId/name@repoId (the immutable IDs mean a renamed or re-created repo can't inherit the trust)."
   type        = string
-  default     = "byeoh100/co-farer"
+  default     = "byeoh100@95153447/co-farer@1466362137"
 }
 
 variable "deploy_branches" {

@@ -40,6 +40,9 @@ export default function Landing() {
             </li>
           ))}
         </ul>
+        <p data-testid="landing-footer" className="mt-14 text-xs text-muted-foreground">
+          Made for group trips with friends.
+        </p>
       </div>
     </>
   )
