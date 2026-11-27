@@ -7,13 +7,17 @@
  * test so test accounts don't pile up trips (past ~100 trips, DeepSpace's
  * team read rule exceeds SQLite's variable limit; PLAN.md §2).
  *
- * Refused unless isLocalTestAccount: a local server AND a @deepspace.test
- * caller. It can never run on the live site or for a real account.
+ * Refused unless the server is local: ALLOW_DEBUG_ROUTES is exactly "true",
+ * which only `deepspace dev`/`test` and `npm run workerd` set, never the
+ * server (docs/MIGRATION.md, Phase 2d: a local environment variable, no
+ * longer DeepSpace test accounts). Even then it only touches the caller's own
+ * trips, and only ones older than 15 minutes.
  */
 
 import type { ActionHandler, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
-import { isLocalTestAccount } from './local-test'
+
+export const testCleanupAllowed = (env: Pick<Env, 'ALLOW_DEBUG_ROUTES'>) => env.ALLOW_DEBUG_ROUTES === 'true'
 
 /** Every trip-scoped collection, with the column holding the trip id. */
 const TRIP_ROWS: Array<[collection: string, tripField: string]> = [
@@ -42,7 +46,7 @@ async function drain(tools: ActionTools, collection: string, where: Record<strin
 const MIN_AGE_MS = 15 * 60_000
 
 const cleanupMyTestTrips: ActionHandler<Env> = async ({ userId, tools, env }) => {
-  if (!(await isLocalTestAccount(env, tools, userId))) {
+  if (!testCleanupAllowed(env)) {
     return { success: false, error: 'Not available.', code: 'not_available' }
   }
   const mine = await tools.query('trips', { where: { organizerId: userId }, limit: 500 })

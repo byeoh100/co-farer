@@ -1,5 +1,7 @@
 # Co-farer on plain workerd (docs/MIGRATION.md, Phase 1).
 #
+# Phase 2d: no DeepSpace platform plumbing; four Durable Object classes.
+#
 # Run with `npm run workerd` (scripts/workerd-run.mjs): it builds nothing,
 # fills the environment variables read below, and points the two disk
 # services at real folders with --directory-path. Secrets are never in this
@@ -46,8 +48,6 @@ const appWorker :Workerd.Worker = (
   bindings = [
     (name = "ASSETS", service = "assets"),
     (name = "RECORD_ROOMS", durableObjectNamespace = "AppRecordRoom"),
-    (name = "YJS_ROOMS", durableObjectNamespace = "AppYjsRoom"),
-    (name = "CANVAS_ROOMS", durableObjectNamespace = "AppCanvasRoom"),
     (name = "PRESENCE_ROOMS", durableObjectNamespace = "AppPresenceRoom"),
     (name = "CRON_ROOMS", durableObjectNamespace = "AppCronRoom"),
     (name = "JOB_ROOMS", durableObjectNamespace = "AppJobRoom"),
@@ -82,12 +82,6 @@ const appWorker :Workerd.Worker = (
     (name = "AWS_SESSION_TOKEN", fromEnvironment = "AWS_SESSION_TOKEN"),
     (name = "BRAVE_API_KEY", fromEnvironment = "BRAVE_API_KEY"),
 
-    # DeepSpace platform plumbing, stubbed (Phase 2 removes these).
-    (name = "AUTH_WORKER_URL", fromEnvironment = "AUTH_WORKER_URL"),
-    (name = "API_WORKER_URL", fromEnvironment = "API_WORKER_URL"),
-    (name = "PLATFORM_WORKER_URL", fromEnvironment = "PLATFORM_WORKER_URL"),
-    (name = "APP_OWNER_JWT", fromEnvironment = "APP_OWNER_JWT"),
-
     # Local only.
     (name = "ALLOW_DEBUG_ROUTES", fromEnvironment = "ALLOW_DEBUG_ROUTES"),
     (name = "LOCAL_STUB_AUTH", fromEnvironment = "LOCAL_STUB_AUTH"),
@@ -96,8 +90,6 @@ const appWorker :Workerd.Worker = (
 
   durableObjectNamespaces = [
     (className = "AppRecordRoom", uniqueKey = "cofarer-AppRecordRoom", enableSql = true),
-    (className = "AppYjsRoom", uniqueKey = "cofarer-AppYjsRoom", enableSql = true),
-    (className = "AppCanvasRoom", uniqueKey = "cofarer-AppCanvasRoom", enableSql = true),
     (className = "AppPresenceRoom", uniqueKey = "cofarer-AppPresenceRoom", enableSql = true),
     (className = "AppCronRoom", uniqueKey = "cofarer-AppCronRoom", enableSql = true),
     (className = "AppJobRoom", uniqueKey = "cofarer-AppJobRoom", enableSql = true),

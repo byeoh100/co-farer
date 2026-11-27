@@ -128,7 +128,7 @@ Answers to the open questions in docs/MIGRATION.md:
 | Google sign-in, or email codes only? | **Google sign-in** (with Cognito managed login) |
 | Profile picture uploads in v1? | **Initials only** for now. 2c is on hold; the initial-on-a-color fallback already exists. |
 | Domain | **co-farer.duckdns.org** (free, from DuckDNS; claimed 2026-11-26). Points at `127.0.0.1` until Phase 3 sets the server's Elastic IP; the DuckDNS token is SecureString `/cofarer/duckdns-token`. co-farer.com was the first pick, dropped to avoid the cost (Route 53 also refuses Free plan accounts). Switching to a bought domain later means changing the Cognito callback and logout URLs and `APP_URL`. |
-| Terraform or CDK? | Not decided yet (Phase 3) |
+| Terraform or CDK? | **Terraform** (2026-11-26) |
 | Budget | "Co-farer monthly", $5: alerts at 85% and 100% actual, and 100% forecast |
 
 ## Phase 2b: sign-in with Cognito (2026-11-25)
@@ -212,3 +212,27 @@ script for the file format; it passed on 2026-11-25 with two temporary
   read-modify-write, since that API replaces every field.
 - Note: a Google account and an email-code account with the same address are two separate
   Co-farer users (Cognito doesn't link them). Pick one way to sign in and stick with it.
+
+## Phase 2d: DeepSpace platform plumbing removed (2026-11-26)
+
+Gone from the worker, `deploy/workerd.capnp` and `scripts/workerd-run.mjs`:
+
+| Removed | What it was | Now |
+| --- | --- | --- |
+| `API_WORKER*`, `APP_OWNER_JWT`, `/api/integrations/*`, `src/integrations.ts` | DeepSpace's metered integrations proxy and billing modes | AI research calls AWS directly (2a). `tools.integration` always refuses. |
+| `PLATFORM_WORKER*`, `APP_IDENTITY_TOKEN`, `/api/files/*`, `useR2Files` | DeepSpace file storage (profile pictures) | Initials only. The profile page no longer uploads; saving clears an old picture link. `PictureCropper` and `src/lib/crop.ts` stay for 2c. |
+| `/_deepspace/*` | Browser proxy to DeepSpace's API | Nothing used it |
+| `/api/auth/native-*` | Expo/native-app sign-in | No native app |
+| `src/ai/*` (agent, MCP and chat routes) | DeepSpace's assistant and agent-tool routes | Nothing used them |
+| `AppYjsRoom`, `AppCanvasRoom` (`YJS_ROOMS`, `CANVAS_ROOMS`, `/ws/yjs`, `/ws/canvas`) | Collaborative-document rooms | Never used. `wrangler.toml` has a `v2` migration deleting them, for the local `deepspace dev` run only (this branch is never deployed to DeepSpace). Old local workerd folders for them are simply ignored. |
+| `/api-status` page and its two starter tests; the picture-cropper e2e test | Starter debug page; picture upload | Features removed |
+
+Still there until 2e: DeepSpace's `/api/auth/*` proxy (`AUTH_WORKER_URL`), which
+only the `deepspace dev`/`test` run uses, so the e2e tests can sign in. It
+answers only when `AUTH_WORKER_URL` is set and Cognito isn't configured, so
+it is inert under `npm run workerd` and on the server.
+
+`cleanupMyTestTrips` is now gated on a local environment variable
+(`ALLOW_DEBUG_ROUTES === "true"`, never set on the server) instead of
+DeepSpace test-account emails; it still touches only the caller's own trips
+older than 15 minutes.

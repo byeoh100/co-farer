@@ -171,24 +171,6 @@ test('Core: a non-member cannot join a trip presence room', async ({ users }) =>
   expect(await outcome(b.page)).toBe('refused')
 })
 
-test('Core: choosing a profile picture opens the centering pop-up', async ({ users }) => {
-  const [a] = await users(1)
-  await a.page.goto('/settings')
-  await expect(a.page.getByRole('heading', { name: 'Profile' })).toBeVisible({ timeout: 15_000 })
-  // A tiny PNG. (Test accounts have no file storage, so the upload itself isn't checked here.)
-  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
-  await a.page.getByTestId('picture-input').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: png })
-  await expect(a.page.getByRole('heading', { name: 'Center your picture' })).toBeVisible()
-  await a.page.getByTestId('cropper-zoom').fill('2')
-  const box = (await a.page.getByTestId('cropper').boundingBox())!
-  await a.page.mouse.move(box.x + 120, box.y + 120)
-  await a.page.mouse.down()
-  await a.page.mouse.move(box.x + 160, box.y + 140)
-  await a.page.mouse.up()
-  await a.page.getByTestId('cropper-done').click()
-  await expect(a.page.getByRole('heading', { name: 'Center your picture' })).toHaveCount(0)
-})
-
 test('Core: a saved profile (name + picture) sticks and shows in trips', async ({ users }) => {
   const [a] = await users(1)
   await a.page.goto('/trips')

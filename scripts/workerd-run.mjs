@@ -6,8 +6,6 @@
  *
  * - Makes a local ES256 key pair once, in .workerd-data/stub-auth.json
  *   (gitignored), for the Phase 1 stand-in sign-in.
- * - Points DeepSpace's platform URLs at a closed local port, so anything
- *   that still needs a DeepSpace server fails visibly instead of silently.
  * - Keeps Durable Object data in .workerd-data/do across restarts.
  * - AI research (Phase 2a): the @deepspace.test stand-in users get the free
  *   fake AI, as before. For real Bedrock and Brave calls, run with `--aws`:
@@ -48,8 +46,6 @@ if (!existsSync(keyFile)) {
 }
 const keys = JSON.parse(readFileSync(keyFile, 'utf8'))
 
-// A port nothing listens on: every DeepSpace platform call fails fast.
-const CLOSED = 'http://127.0.0.1:9'
 
 const env = {
   ...process.env,
@@ -59,10 +55,6 @@ const env = {
   AUTH_JWT_PUBLIC_KEY: keys.publicPem,
   AUTH_JWT_ISSUER: 'cofarer-local-stub',
   OWNER_USER_ID: 'stub-owner',
-  AUTH_WORKER_URL: CLOSED,
-  API_WORKER_URL: CLOSED,
-  PLATFORM_WORKER_URL: CLOSED,
-  APP_OWNER_JWT: 'phase1-dummy-owner-jwt',
   ALLOW_DEBUG_ROUTES: 'true',
   LOCAL_STUB_AUTH: 'true',
   STUB_AUTH_PRIVATE_KEY: keys.privatePem,

@@ -24,13 +24,13 @@ export const tasks: CronTask[] = [
 export async function runTask(name: string, env: unknown): Promise<void> {
   const e = env as Env
   if (name === 'budget-visibility') {
-    const n = await migrateBudgetVisibility(createActionTools(e, e.OWNER_USER_ID, ''))
+    const n = await migrateBudgetVisibility(createActionTools(e, e.OWNER_USER_ID))
     if (n > 0) console.info(`[cron] budget-visibility: migrated ${n} budget rows`)
     return
   }
   if (name !== 'housing-deadlines') return
   // System identity (the app owner); no caller JWT, and no integrations are used.
-  const tools = createActionTools(e, e.OWNER_USER_ID, '')
+  const tools = createActionTools(e, e.OWNER_USER_ID)
   const res = await tools.query<BoardRow & Record<string, unknown>>('boards', { where: { status: 'open', lockable: 1 }, limit: 500 })
   if (!res.success) {
     console.error(`[cron] housing-deadlines: could not list boards: ${res.error}`)

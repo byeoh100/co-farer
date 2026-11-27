@@ -1,35 +1,17 @@
 /**
- * HTTP routes that proxy app requests to DeepSpace platform services.
+ * HTTP routes: sign-in plumbing, the local debug proxy, and the static/SPA
+ * fallback. Self-hosted (docs/MIGRATION.md, Phase 2d): the DeepSpace
+ * integrations, file and `/_deepspace` proxies and native-app sign-in are gone.
  *
- * The app worker remains the security boundary: caller identity is derived
- * from a verified JWT, caller-supplied identity headers are removed, and app
- * identity is re-asserted only from worker bindings.
+ * What remains of DeepSpace here is its `/api/auth/*` proxy, used only by the
+ * `deepspace dev`/`test` run that the e2e tests still sign in through. It
+ * answers only when AUTH_WORKER_URL is set and Cognito isn't configured
+ * (src/server/cognito-auth.ts answers first), and Phase 2e removes it.
  */
 
 import type { Hono } from 'hono'
-import type { ContentfulStatusCode } from 'hono/utils/http-status'
-import {
-  apiWorkerFetch,
-  authWorkerFetch,
-  BROWSER_PROXY_ROUTES,
-  integrationPath,
-  isPlatformReservedPath,
-  lookupOwn,
-  platformWorkerFetch,
-  resolveAppRole,
-  resolveSessionReadAuth,
-  SESSION_COOKIE,
-  verifyAgentToken,
-  verifyJwt,
-  nativeAuthCallback,
-  nativeAuthExchange,
-  nativeAuthMe,
-  nativeAuthSignOut,
-  nativeAuthStart,
-  nativeAuthToken,
-} from 'deepspace/worker'
-import type { ExpoAuthBridgeOptions, JwtVerifierConfig, VerifyResult } from 'deepspace/worker'
-import { integrations } from '../integrations.js'
+import { authWorkerFetch, isPlatformReservedPath, resolveAppRole, SESSION_COOKIE, verifyJwt } from 'deepspace/worker'
+import type { JwtVerifierConfig, VerifyResult } from 'deepspace/worker'
 import type { AppContext, Env } from '../../worker.js'
 
 function jwtConfig(env: Env): JwtVerifierConfig {
@@ -43,62 +25,26 @@ export async function resolveAuth(req: Request, env: Env): Promise<VerifyResult 
   return (await verifyJwt(jwtConfig(env), token)).result
 }
 
-/** Agent credentials are valid only at the exact origin receiving the request. */
-export async function resolveAgentAuth(req: Request, env: Env): Promise<VerifyResult | null> {
-  const header = req.headers.get('Authorization')
-  const token = header?.startsWith('Bearer ') ? header.slice(7) : null
-  if (!token) return null
-  return (await verifyAgentToken(jwtConfig(env), token, new URL(req.url).origin)).result
-}
-
-/**
- * Re-assert this app's identity headers on a proxied request, fail-closed.
- * Never forwards caller-supplied identity; attaches ours only when the app
- * has a token (absent pre-first-deploy — see Env.APP_IDENTITY_TOKEN).
- */
-function reassertAppIdentity(headers: Headers, env: Env): void {
-  headers.delete('x-app-identity-token')
-  headers.delete('x-app-id')
-  if (!env.APP_IDENTITY_TOKEN) return
-  headers.set('x-app-identity-token', env.APP_IDENTITY_TOKEN)
-  headers.set('x-app-id', env.DEEPSPACE_APP_ID)
-}
-
-/** Register auth, debug, and integration routes in their required order. */
-export function registerAuthAndIntegrationRoutes(app: Hono<AppContext>): void {
-  const nativeAuthOptions = (env: Env): ExpoAuthBridgeOptions => ({
-    allowedRedirectUris: (env.NATIVE_AUTH_REDIRECT_URIS ?? '')
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean),
-  })
-
-  // Native routes must precede the Better Auth wildcard below. The exact
-  // browser callback handler branches only when the native bridge's validated
-  // redirect_uri is present, so a generated worker cannot shadow native OAuth.
-  app.get('/api/auth/native-start', (c) => nativeAuthStart(c.req.raw, c.env, nativeAuthOptions(c.env)))
-  app.post('/api/auth/native-exchange', (c) => nativeAuthExchange(c.req.raw, c.env))
-  app.post('/api/auth/native-token', (c) => nativeAuthToken(c.req.raw, c.env))
-  app.get('/api/auth/native-me', (c) => nativeAuthMe(c.req.raw, c.env))
-  app.post('/api/auth/native-signout', (c) => nativeAuthSignOut(c.req.raw, c.env))
+/** DeepSpace's auth proxy (e2e run only, until 2e) and the local debug route. */
+export function registerAuthRoutes(app: Hono<AppContext>): void {
+  const deepspaceAuth = (env: Env) => !!env.AUTH_WORKER_URL && !env.COGNITO_CLIENT_ID
 
   // Social OAuth redirect + code exchange.
-  app.get('/api/auth/social-redirect', (c) => {
+  app.get('/api/auth/social-redirect', (c, next) => {
+    if (!deepspaceAuth(c.env)) return next()
     const provider = c.req.query('provider')
     if (!provider) return c.json({ error: 'Missing provider' }, 400)
 
     const appOrigin = new URL(c.req.url).origin
-    const authOrigin = new URL(c.env.AUTH_WORKER_URL).origin
+    const authOrigin = new URL(c.env.AUTH_WORKER_URL!).origin
 
     return c.redirect(
       `${authOrigin}/login/social?provider=${encodeURIComponent(provider)}&returnTo=${encodeURIComponent(appOrigin)}`,
     )
   })
 
-  app.get('/api/auth/oauth-complete', async (c) => {
-    if (c.req.query('redirect_uri')) {
-      return nativeAuthCallback(c.req.raw, c.env, nativeAuthOptions(c.env))
-    }
+  app.get('/api/auth/oauth-complete', async (c, next) => {
+    if (!deepspaceAuth(c.env)) return next()
     const code = c.req.query('code')
     const appOrigin = new URL(c.req.url).origin
     // Land the signed-in user in the app, not on the static landing. `/` is a
@@ -128,7 +74,8 @@ export function registerAuthAndIntegrationRoutes(app: Hono<AppContext>): void {
     })
   })
 
-  app.all('/api/auth/sign-out', async (c) => {
+  app.all('/api/auth/sign-out', async (c, next) => {
+    if (!deepspaceAuth(c.env)) return next()
     try {
       await authWorkerFetch(c.env, '/api/auth/sign-out', {
         method: c.req.method,
@@ -150,7 +97,8 @@ export function registerAuthAndIntegrationRoutes(app: Hono<AppContext>): void {
   })
 
   // Auth proxy → auth-worker (same-origin cookies).
-  app.all('/api/auth/*', async (c) => {
+  app.all('/api/auth/*', async (c, next) => {
+    if (!deepspaceAuth(c.env)) return next()
     const url = new URL(c.req.url)
     const res = await authWorkerFetch(c.env, url.pathname + url.search, {
       method: c.req.method,
@@ -183,189 +131,6 @@ export function registerAuthAndIntegrationRoutes(app: Hono<AppContext>): void {
     )
     // Forward verbatim: the DO dispatches on the original pathname.
     return stub.fetch(c.req.raw)
-  })
-
-  // Integrations proxy → api-worker.
-  app.get('/api/integrations', async (c) => {
-    try {
-      const res = await apiWorkerFetch(c.env, '/api/integrations')
-      return new Response(res.body, { status: res.status, headers: res.headers })
-    } catch {
-      return c.json({ error: 'Failed to fetch integration catalog' }, 502)
-    }
-  })
-
-  // OAuth connection state is always user-billed, so forward the caller JWT.
-  app.get('/api/integrations/status', async (c) => {
-    const auth = await resolveAuth(c.req.raw, c.env)
-    if (!auth) return c.json({ error: 'Sign in required' }, 401)
-    const token = c.req.header('Authorization')?.slice(7)
-    try {
-      const res = await apiWorkerFetch(c.env, '/api/integrations/status', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
-      return new Response(res.body, { status: res.status, headers: res.headers })
-    } catch {
-      return c.json({ error: 'Status proxy failed' }, 502)
-    }
-  })
-
-  app.delete('/api/integrations/oauth/:provider/disconnect', async (c) => {
-    const auth = await resolveAuth(c.req.raw, c.env)
-    if (!auth) return c.json({ error: 'Sign in required' }, 401)
-    const token = c.req.header('Authorization')?.slice(7)
-    const provider = c.req.param('provider')
-    try {
-      const res = await apiWorkerFetch(
-        c.env,
-        `/api/integrations/oauth/${encodeURIComponent(provider)}/disconnect`,
-        {
-          method: 'DELETE',
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        },
-      )
-      return new Response(res.body, { status: res.status, headers: res.headers })
-    } catch {
-      return c.json({ error: 'Disconnect proxy failed' }, 502)
-    }
-  })
-
-  app.all('/api/integrations/:name/:endpoint', async (c) => {
-    const integrationName = c.req.param('name')
-    // Params arrive decoded, so `..%2F..%2Fapi%2Fusers` would otherwise
-    // reach another api-worker route with the owner's token. Plain
-    // identifiers only, and own keys only for the config.
-    const target = integrationPath(integrationName, c.req.param('endpoint'))
-    if (!target) return c.json({ error: 'Unknown integration' }, 404)
-    const config = lookupOwn(integrations, integrationName)
-    const billingMode = config?.billing ?? 'developer'
-
-    // Sign-in is required unless the app opts this integration into anonymous
-    // use; developer billing would otherwise let any visitor spend the owner's
-    // credits. User billing always needs a caller to bill.
-    const auth = await resolveAuth(c.req.raw, c.env)
-    if (!auth && (billingMode === 'user' || !config?.anonymous)) {
-      return c.json({ error: 'Sign in required for this integration' }, 401)
-    }
-
-    const headers: Record<string, string> = {
-      'Content-Type': c.req.header('Content-Type') ?? 'application/json',
-    }
-
-    // The api-worker bills the JWT subject: developer mode uses the app owner;
-    // user mode forwards the caller. There is no client billing override.
-    if (billingMode === 'developer') {
-      headers['Authorization'] = `Bearer ${c.env.APP_OWNER_JWT}`
-    } else {
-      const token = c.req.header('Authorization')?.slice(7)
-      if (token) headers['Authorization'] = `Bearer ${token}`
-    }
-
-    // Identify this app for per-app integrations. Pre-first-deploy there is no
-    // token, so omit both headers and let the api-worker fail closed.
-    if (c.env.APP_IDENTITY_TOKEN) {
-      headers['x-app-identity-token'] = c.env.APP_IDENTITY_TOKEN
-      headers['x-app-id'] = c.env.DEEPSPACE_APP_ID
-    }
-
-    const hasBody = c.req.method !== 'GET' && c.req.method !== 'HEAD'
-    const body = hasBody ? await c.req.text() : undefined
-
-    try {
-      const res = await apiWorkerFetch(c.env, target, {
-        method: c.req.method,
-        headers,
-        body,
-      })
-      return new Response(res.body, { status: res.status, headers: res.headers })
-    } catch {
-      return c.json({ error: 'Integration proxy failed' }, 502)
-    }
-  })
-}
-
-/** Register scoped-file and authenticated browser-to-platform proxies. */
-export function registerPlatformProxyRoutes(app: Hono<AppContext>): void {
-  // Scoped R2 files → platform-worker. The app has no local R2 binding; the
-  // platform bucket scopes keys to the verified app and, by default, user.
-  app.all('/api/files/*', async (c) => {
-    // A same-origin GET/HEAD with no bearer is identified by the app-origin
-    // session cookie, so a private file URL renders in <img>/<audio>/<video>.
-    // The fallback lives here, not in resolveAuth, which also gates writes.
-    const auth =
-      (await resolveAuth(c.req.raw, c.env)) ?? (await resolveSessionReadAuth(c.req.raw, c.env))
-    const userId = auth?.userId ?? null
-
-    const url = new URL(c.req.url)
-    const platformUrl = new URL(c.req.url)
-    platformUrl.pathname = url.pathname.replace('/api/files', '/internal/files')
-
-    const headers = new Headers(c.req.raw.headers)
-    // platform-worker trusts x-user-id after app HMAC validation. Always remove
-    // caller input and derive it from the verified JWT.
-    headers.delete('x-user-id')
-    reassertAppIdentity(headers, c.env)
-    if (userId) headers.set('x-user-id', userId)
-
-    const resp = await platformWorkerFetch(
-      c.env,
-      new Request(platformUrl.toString(), {
-        method: c.req.method,
-        headers,
-        body: c.req.raw.body,
-      }),
-    )
-
-    // Rewrite platform URLs in JSON responses to use the app's origin (a HEAD
-    // answer has the content-type but no body).
-    const contentType = resp.headers.get('content-type') ?? ''
-    if (contentType.includes('application/json') && c.req.method !== 'HEAD') {
-      const body = (await resp.json()) as Record<string, unknown>
-      const rewriteUrl = (value: string) => value.replace(/^https?:\/\/[^/]+/, url.origin)
-      if (typeof body.url === 'string') body.url = rewriteUrl(body.url)
-      if (Array.isArray(body.files)) {
-        for (const file of body.files as Array<Record<string, unknown>>) {
-          if (typeof file.url === 'string') file.url = rewriteUrl(file.url)
-        }
-      }
-      return c.json(body, resp.status as ContentfulStatusCode)
-    }
-
-    return new Response(resp.body, { status: resp.status, headers: resp.headers })
-  })
-
-  // Same-origin browser proxy for authenticated SDK hooks. Keep this an exact
-  // (method, path) allowlist: prefix matching would expose deploy/CLI routes.
-  app.all('/_deepspace/*', async (c) => {
-    const url = new URL(c.req.url)
-    const method = c.req.method
-    const route = BROWSER_PROXY_ROUTES.find(
-      (candidate) => candidate.method === method && candidate.path === url.pathname,
-    )
-    if (!route) {
-      return c.json({ error: 'not_found' }, 404)
-    }
-
-    const auth = await resolveAuth(c.req.raw, c.env)
-    if (!auth?.userId) return c.json({ error: 'unauthorized' }, 401)
-
-    // Always overwrite caller input with this worker's immutable app id.
-    const forwardedParams = new URLSearchParams(url.search)
-    forwardedParams.set('appId', c.env.DEEPSPACE_APP_ID)
-    const queryString = forwardedParams.toString()
-    const apiPath =
-      url.pathname.replace('/_deepspace/', '/api/') + (queryString ? `?${queryString}` : '')
-
-    const headers = new Headers(c.req.raw.headers)
-    headers.delete('x-user-id')
-    reassertAppIdentity(headers, c.env)
-    headers.set('x-user-id', auth.userId)
-
-    return apiWorkerFetch(c.env, apiPath, {
-      method,
-      headers,
-      body: ['GET', 'HEAD'].includes(method) ? undefined : c.req.raw.body,
-    })
   })
 }
 
