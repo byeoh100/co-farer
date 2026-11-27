@@ -44,3 +44,15 @@ variable "bedrock_model_id" {
   type        = string
   default     = "us.anthropic.claude-haiku-5-5"
 }
+
+variable "github_repo" {
+  description = "GitHub repository allowed to deploy (owner/name)."
+  type        = string
+  default     = "byeoh100/co-farer"
+}
+
+variable "deploy_branches" {
+  description = "Branches whose pushes may deploy. self-host until Phase 5 switches the live app over; then main."
+  type        = list(string)
+  default     = ["self-host"]
+}

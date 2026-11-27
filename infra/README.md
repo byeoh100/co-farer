@@ -32,7 +32,7 @@ Session Manager plugin). There is no SSH.
 
 ## Things to know
 
-- **State is local** (`infra/terraform.tfstate`, gitignored). Keep a backup.
+- **State is in S3**: `s3://cofarer-tfstate-464079169769/cofarer/infra.tfstate` (versioned, private, encrypted, S3 locking; `backend.tf`). The bucket was made outside Terraform. To restore an older state, restore an older object version.
 - **The server is never replaced by accident.** A new Amazon Linux image or a
   change to `bootstrap.sh.tftpl` is ignored for the running server. To apply
   one, back up first, then `terraform apply -replace=aws_instance.server`.

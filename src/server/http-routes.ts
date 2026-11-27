@@ -9,6 +9,7 @@ import type { Hono } from 'hono'
 import { isPlatformReservedPath, resolveAppRole, verifyJwt } from 'deepspace/worker'
 import type { JwtVerifierConfig, VerifyResult } from 'deepspace/worker'
 import type { AppContext, Env } from '../../worker.js'
+import { createActionTools } from './action-routes.js'
 
 function jwtConfig(env: Env): JwtVerifierConfig {
   return { publicKey: env.AUTH_JWT_PUBLIC_KEY, issuer: env.AUTH_JWT_ISSUER }
@@ -19,6 +20,26 @@ export async function resolveAuth(req: Request, env: Env): Promise<VerifyResult 
   const token = header?.startsWith('Bearer ') ? header.slice(7) : null
   if (!token) return null
   return (await verifyJwt(jwtConfig(env), token)).result
+}
+
+/**
+ * `/healthz` (docs/MIGRATION.md, Phase 4): "ok" once the data room answers a
+ * one-row read, else 503. Deploys wait for it before keeping a release. It
+ * says nothing about the data itself.
+ */
+export function registerHealthRoute(app: Hono<AppContext>): void {
+  app.get('/healthz', async (c) => {
+    const headers = { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' }
+    try {
+      const probe = createActionTools(c.env, c.env.OWNER_USER_ID).query('trips', { limit: 1 })
+      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5_000))
+      const res = await Promise.race([probe, timeout])
+      if (res && res.success) return new Response('ok', { headers })
+    } catch {
+      // fall through
+    }
+    return new Response('unavailable', { status: 503, headers })
+  })
 }
 
 /** The local debug route (RecordRoom inspection), gated on ALLOW_DEBUG_ROUTES and the admin role. */

@@ -24,7 +24,7 @@ import { tasks as cronTasks, runTask as runCronTask } from './src/cron.js'
 import { runJob } from './src/jobs.js'
 import { schemas } from './src/schemas.js'
 import { registerActionRoutes } from './src/server/action-routes.js'
-import { registerDebugRoutes, registerStaticRoutes, resolveAuth } from './src/server/http-routes.js'
+import { registerDebugRoutes, registerHealthRoute, registerStaticRoutes, resolveAuth } from './src/server/http-routes.js'
 import { registerRealtimeRoutes } from './src/server/realtime-routes.js'
 import { registerTestAuthRoutes } from './src/server/test-auth.js'
 import type { AiEnv } from './src/lib/ai-provider.js'
@@ -117,6 +117,7 @@ registerTestAuthRoutes(app)
 // Cognito sign-in (Phase 2b). Inert unless COGNITO_CLIENT_ID is set.
 registerCognitoAuthRoutes(app)
 registerDebugRoutes(app)
+registerHealthRoute(app)
 registerRealtimeRoutes(app)
 registerActionRoutes(app, resolveAuth)
 registerStaticRoutes(app)

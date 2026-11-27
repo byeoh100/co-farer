@@ -19,6 +19,13 @@ test.describe('API tests', () => {
     expect(res.status()).toBe(401)
   })
 
+  test('/healthz answers ok once the data room is reachable', async ({ request }) => {
+    const res = await request.get('/healthz')
+    expect(res.status()).toBe(200)
+    expect(await res.text()).toBe('ok')
+    expect(res.headers()['cache-control']).toBe('no-store')
+  })
+
   test('WebSocket endpoint exists', async ({ page }) => {
     // /home is a dynamic page (under src/pages/(app)/), so mounting it boots
     // the providers and auto-connects the records WebSocket. The static
