@@ -1,0 +1,9 @@
+# Local Terraform working files and state (state is local; keep a backup of
+# terraform.tfstate somewhere safe: it maps this code to the live resources).
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+# Your values (may contain your email).
+terraform.tfvars
+*.tfplan

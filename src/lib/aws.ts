@@ -52,7 +52,13 @@ export async function awsCredentials(env: AwsEnv): Promise<AwsCredentials | null
     console.error('[aws] no AWS credentials: set the AWS_* variables locally, or the IMDS binding on the server')
     return null
   }
-  cachedRoleCreds = await imdsCredentials(env.IMDS)
+  try {
+    cachedRoleCreds = await imdsCredentials(env.IMDS)
+  } catch (err) {
+    // Unreachable or slow metadata service: fail politely, try again next call.
+    console.error(`[aws] instance credentials unavailable: ${err instanceof Error ? err.name : typeof err}`)
+    cachedRoleCreds = null
+  }
   return cachedRoleCreds
 }
 
@@ -93,20 +99,25 @@ export function readImdsCredentials(raw: unknown): AwsCredentials | null {
 
 /** SSM GetParameter (decrypted SecureString) over its JSON API. */
 export async function getParameter(env: AwsEnv, name: string): Promise<string | null> {
-  const aws = await awsClient(env, 'ssm')
-  if (!aws) return null
-  const region = env.AWS_REGION || DEFAULT_REGION
-  const res = await aws.fetch(`https://ssm.${region}.amazonaws.com/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-amz-json-1.1', 'X-Amz-Target': 'AmazonSSM.GetParameter' },
-    body: JSON.stringify({ Name: name, WithDecryption: true }),
-    signal: AbortSignal.timeout(10_000),
-  })
-  if (!res.ok) {
-    console.error(`[aws] Parameter Store answered HTTP ${res.status} for ${name}`)
+  try {
+    const aws = await awsClient(env, 'ssm')
+    if (!aws) return null
+    const region = env.AWS_REGION || DEFAULT_REGION
+    const res = await aws.fetch(`https://ssm.${region}.amazonaws.com/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-amz-json-1.1', 'X-Amz-Target': 'AmazonSSM.GetParameter' },
+      body: JSON.stringify({ Name: name, WithDecryption: true }),
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (!res.ok) {
+      console.error(`[aws] Parameter Store answered HTTP ${res.status} for ${name}`)
+      return null
+    }
+    return readParameterValue(await res.json())
+  } catch (err) {
+    console.error(`[aws] Parameter Store unreachable for ${name}: ${err instanceof Error ? err.name : typeof err}`)
     return null
   }
-  return readParameterValue(await res.json())
 }
 
 export function readParameterValue(raw: unknown): string | null {

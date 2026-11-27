@@ -1,0 +1,331 @@
+#!/bin/bash
+# Co-farer server bootstrap (docs/MIGRATION.md, Phase 3). Runs once, as root,
+# on the first boot of the EC2 instance (Amazon Linux 2023, arm64).
+#
+# Terraform fills in the values in ${"$"}{...}; shell variables are written $X.
+# No secrets are written to disk: the app and scripts read them from
+# Parameter Store at run time through the instance role.
+set -euxo pipefail
+exec > >(tee -a /var/log/cofarer-bootstrap.log) 2>&1
+
+# ── Packages and users ───────────────────────────────────────────────────
+dnf install -y amazon-cloudwatch-agent dnf-automatic tar gzip logrotate
+
+useradd --system --home-dir /var/lib/cofarer --shell /sbin/nologin cofarer || true
+useradd --system --home-dir /var/lib/caddy --shell /sbin/nologin caddy || true
+install -d -o cofarer -g cofarer -m 0700 /var/lib/cofarer /var/lib/cofarer/do
+install -d -o root -g root -m 0755 /opt/cofarer /opt/cofarer/bin /opt/cofarer/releases /etc/cofarer
+install -d -o cofarer -g cofarer -m 0755 /var/log/cofarer
+install -d -o caddy -g caddy -m 0700 /var/lib/caddy
+install -d -o caddy -g caddy -m 0755 /var/log/caddy /etc/caddy
+
+# ── Non-secret configuration ─────────────────────────────────────────────
+cat > /etc/cofarer/config.env <<'EOF'
+AWS_REGION=${region}
+COFARER_BUCKET=${bucket}
+DUCKDNS_SUBDOMAIN=${duckdns_subdomain}
+PUBLIC_IP=${public_ip}
+DEEPSPACE_APP_ID=app_01M7YNEGCHEWFMYBPJTYECY9KT
+APP_NAME=co-farer
+NATIVE_AUTH_REDIRECT_URIS=
+APP_URL=https://${domain}
+AUTH_JWT_ISSUER=https://${domain}
+OWNER_USER_ID=${owner_user_id}
+COGNITO_DOMAIN=${cognito_domain}
+COGNITO_CLIENT_ID=${cognito_client_id}
+COGNITO_USER_POOL_ID=${cognito_pool_id}
+BEDROCK_MODEL_ID=${bedrock_model_id}
+EOF
+chmod 0644 /etc/cofarer/config.env
+
+# ── Scripts ──────────────────────────────────────────────────────────────
+# Starts workerd as the `cofarer` user. Reads the (public) token-verification
+# key from Parameter Store; the private signing key, Brave key and AWS
+# credentials are fetched by the app itself at run time, never stored.
+cat > /opt/cofarer/bin/run-workerd <<'EOF'
+#!/bin/bash
+set -euo pipefail
+set -a; . /etc/cofarer/config.env; set +a
+AUTH_JWT_PUBLIC_KEY="$(aws ssm get-parameter --region "$AWS_REGION" --name /cofarer/app-jwt-public-key --query Parameter.Value --output text)"
+export AUTH_JWT_PUBLIC_KEY
+R=/opt/cofarer/current
+exec "$R/bin/workerd" serve "$R/deploy/workerd.capnp" --experimental \
+  --directory-path=assets-disk="$R/dist/client" \
+  --directory-path=do-storage=/var/lib/cofarer/do \
+  --socket-addr=http=127.0.0.1:8080
+EOF
+
+# Installs a release from S3, switches to it, and rolls back if it doesn't
+# answer within 60 s. Used by infra/release.sh now and Phase 4's deploys.
+cat > /opt/cofarer/bin/install-release <<'EOF'
+#!/bin/bash
+set -euo pipefail
+. /etc/cofarer/config.env
+ID="$1"
+[[ "$ID" =~ ^[0-9a-zA-Z._-]{1,64}$ ]] || { echo "bad release id: $ID" >&2; exit 2; }
+DEST=/opt/cofarer/releases/$ID
+if [ ! -f "$DEST/deploy/workerd.capnp" ]; then
+  TMP=$(mktemp -d)
+  trap 'rm -rf "$TMP"' EXIT
+  aws s3 cp --only-show-errors "s3://$COFARER_BUCKET/releases/$ID/release.tar.gz" "$TMP/release.tar.gz"
+  rm -rf "$DEST.tmp"; mkdir -p "$DEST.tmp"
+  tar -xzf "$TMP/release.tar.gz" -C "$DEST.tmp" --no-same-owner
+  test -x "$DEST.tmp/bin/workerd" && test -f "$DEST.tmp/deploy/workerd.capnp" && test -f "$DEST.tmp/dist/co_farer/index.js"
+  rm -rf "$DEST"; mv "$DEST.tmp" "$DEST"
+fi
+PREV=$(readlink -f /opt/cofarer/current 2>/dev/null || true)
+switch() { ln -sfn "$1" /opt/cofarer/current.new && mv -T /opt/cofarer/current.new /opt/cofarer/current; }
+switch "$DEST"
+systemctl restart cofarer
+for _ in $(seq 1 60); do
+  if curl -fsS -o /dev/null --max-time 2 http://127.0.0.1:8080/api/auth/get-session; then
+    echo "release $ID is live"
+    # Keep the five newest releases.
+    ls -1dt /opt/cofarer/releases/*/ | tail -n +6 | xargs -r rm -rf
+    exit 0
+  fi
+  sleep 1
+done
+echo "release $ID did not answer within 60 s" >&2
+if [ -n "$PREV" ] && [ "$PREV" != "$DEST" ] && [ -d "$PREV" ]; then
+  switch "$PREV"; systemctl restart cofarer
+  echo "rolled back to $(basename "$PREV")" >&2
+fi
+exit 1
+EOF
+
+# Nightly copy of the app's data to S3: a few seconds of downtime.
+cat > /opt/cofarer/bin/backup <<'EOF'
+#!/bin/bash
+set -euo pipefail
+. /etc/cofarer/config.env
+TS=$(date -u +%Y%m%dT%H%M%SZ)
+OUT=/var/tmp/cofarer-do-$TS.tar.gz
+trap 'systemctl start cofarer; rm -f "$OUT"' EXIT
+systemctl stop cofarer
+tar -czf "$OUT" -C /var/lib/cofarer do
+systemctl start cofarer
+aws s3 cp --only-show-errors "$OUT" "s3://$COFARER_BUCKET/backups/cofarer-do-$TS.tar.gz"
+echo "backup cofarer-do-$TS.tar.gz uploaded"
+EOF
+
+# Points the DuckDNS name at this server's Elastic IP. The token is read
+# from Parameter Store and passed to curl on stdin (never on a command line).
+cat > /opt/cofarer/bin/duckdns-update <<'EOF'
+#!/bin/bash
+set -euo pipefail
+. /etc/cofarer/config.env
+TOKEN=$(aws ssm get-parameter --region "$AWS_REGION" --name /cofarer/duckdns-token --with-decryption --query Parameter.Value --output text)
+RES=$(printf 'url = "https://www.duckdns.org/update?domains=%s&token=%s&ip=%s"\n' "$DUCKDNS_SUBDOMAIN" "$TOKEN" "$PUBLIC_IP" | curl -fsS --max-time 20 -K -)
+unset TOKEN
+echo "duckdns: $RES"
+[ "$RES" = "OK" ]
+EOF
+chmod 0755 /opt/cofarer/bin/*
+
+# ── Caddy (HTTPS, Let's Encrypt) ─────────────────────────────────────────
+CADDY_TGZ=/var/tmp/caddy.tar.gz
+curl -fsSL -o "$CADDY_TGZ" "https://github.com/caddyserver/caddy/releases/download/v${caddy_version}/caddy_${caddy_version}_linux_arm64.tar.gz"
+echo "${caddy_sha512}  $CADDY_TGZ" | sha512sum -c -
+tar -xzf "$CADDY_TGZ" -C /usr/local/bin caddy
+rm -f "$CADDY_TGZ"
+chown root:root /usr/local/bin/caddy; chmod 0755 /usr/local/bin/caddy
+
+cat > /etc/caddy/Caddyfile <<'EOF'
+{
+	admin off
+}
+
+${domain} {
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000"
+	reverse_proxy 127.0.0.1:8080
+	log {
+		output file /var/log/caddy/access.log {
+			mode 0644
+		}
+		# Never log sign-in codes, WebSocket tokens, cookies or bearer tokens.
+		format filter {
+			request>uri query {
+				delete code
+				delete state
+				delete token
+			}
+			request>headers>Cookie delete
+			request>headers>Authorization delete
+			resp_headers>Set-Cookie delete
+		}
+	}
+}
+EOF
+
+# ── systemd units ────────────────────────────────────────────────────────
+cat > /etc/systemd/system/cofarer.service <<'EOF'
+[Unit]
+Description=Co-farer (workerd)
+After=network-online.target
+Wants=network-online.target
+# Nothing to run until the first release is installed.
+ConditionPathExists=/opt/cofarer/current/deploy/workerd.capnp
+
+[Service]
+User=cofarer
+Group=cofarer
+Environment=HOME=/var/lib/cofarer
+ExecStart=/opt/cofarer/bin/run-workerd
+Restart=always
+RestartSec=3
+StandardOutput=append:/var/log/cofarer/workerd.log
+StandardError=append:/var/log/cofarer/workerd.log
+LimitNOFILE=65536
+# Read-only everywhere except its data folder.
+ProtectSystem=strict
+ReadWritePaths=/var/lib/cofarer
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+NoNewPrivileges=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat > /etc/systemd/system/caddy.service <<'EOF'
+[Unit]
+Description=Caddy (HTTPS for Co-farer)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=caddy
+Group=caddy
+Environment=XDG_DATA_HOME=/var/lib/caddy XDG_CONFIG_HOME=/var/lib/caddy
+ExecStart=/usr/local/bin/caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+Restart=always
+RestartSec=3
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+LimitNOFILE=65536
+ProtectSystem=strict
+ReadWritePaths=/var/lib/caddy /var/log/caddy
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat > /etc/systemd/system/cofarer-duckdns.service <<'EOF'
+[Unit]
+Description=Point the DuckDNS name at this server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/cofarer/bin/duckdns-update
+EOF
+cat > /etc/systemd/system/cofarer-duckdns.timer <<'EOF'
+[Unit]
+Description=Refresh the DuckDNS record
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=6h
+
+[Install]
+WantedBy=timers.target
+EOF
+
+cat > /etc/systemd/system/cofarer-backup.service <<'EOF'
+[Unit]
+Description=Back up Co-farer's data to S3
+
+[Service]
+Type=oneshot
+ExecStart=/opt/cofarer/bin/backup
+EOF
+cat > /etc/systemd/system/cofarer-backup.timer <<'EOF'
+[Unit]
+Description=Nightly Co-farer backup (4 am Pacific)
+
+[Timer]
+OnCalendar=*-*-* 04:00:00 America/Los_Angeles
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+cat > /etc/systemd/system/cofarer-reboot.service <<'EOF'
+[Unit]
+Description=Weekly reboot (picks up kernel and library updates)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl reboot
+EOF
+cat > /etc/systemd/system/cofarer-reboot.timer <<'EOF'
+[Unit]
+Description=Weekly reboot, Sunday 4:30 am Pacific
+
+[Timer]
+OnCalendar=Sun *-*-* 04:30:00 America/Los_Angeles
+
+[Install]
+WantedBy=timers.target
+EOF
+
+# ── Security updates ─────────────────────────────────────────────────────
+sed -i -e 's/^upgrade_type.*/upgrade_type = security/' -e 's/^apply_updates.*/apply_updates = yes/' /etc/dnf/automatic.conf
+
+# ── Logs: rotate locally, ship to CloudWatch (30 days) ───────────────────
+cat > /etc/logrotate.d/cofarer <<'EOF'
+/var/log/cofarer/workerd.log /var/log/caddy/access.log {
+	daily
+	rotate 7
+	compress
+	missingok
+	notifempty
+	copytruncate
+}
+EOF
+cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<'EOF'
+{
+  "agent": { "run_as_user": "root" },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          { "file_path": "/var/log/cofarer/workerd.log", "log_group_name": "/cofarer/workerd", "log_stream_name": "{instance_id}" },
+          { "file_path": "/var/log/caddy/access.log", "log_group_name": "/cofarer/caddy", "log_stream_name": "{instance_id}" }
+        ]
+      }
+    }
+  }
+}
+EOF
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s \
+  -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+
+# ── Start everything ─────────────────────────────────────────────────────
+systemctl daemon-reload
+systemctl enable cofarer.service
+systemctl enable --now caddy.service dnf-automatic.timer \
+  cofarer-duckdns.timer cofarer-backup.timer cofarer-reboot.timer
+systemctl start cofarer-duckdns.service || true
+
+# Install the newest release, if one has been uploaded (a rebuilt server
+# comes back by itself; the very first one gets its release from release.sh).
+if LATEST=$(aws s3 cp --only-show-errors "s3://${bucket}/releases/latest.txt" - 2>/dev/null) && [ -n "$LATEST" ]; then
+  /opt/cofarer/bin/install-release "$LATEST" || true
+fi
+echo "bootstrap done"

@@ -148,6 +148,13 @@ describe('credentials and parameters', () => {
     await awsCredentials({ IMDS })
     expect(calls).toHaveLength(3)
   })
+  it('returns null (never throws) when IMDS times out, and tries again next call', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const IMDS = { fetch: vi.fn(async () => { throw new DOMException('timed out', 'TimeoutError') }) } as unknown as Fetcher
+    expect(await awsCredentials({ IMDS })).toBeNull()
+    expect(await awsCredentials({ IMDS })).toBeNull()
+    expect((IMDS.fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBe(2)
+  })
   it('has no credentials without local keys or IMDS', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     expect(await awsCredentials({})).toBeNull()
