@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Co-farer home, My trips</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+body{margin:0;background:#111111}
+a{color:#F2EFEA;text-decoration:none}a:hover{color:#FFFFFF}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #111111; color: #F2EFEA; font-family: Inter, system-ui, sans-serif; font-size: 14px">
+<div style="max-width: 1280px; margin: 0 auto; padding: 20px 32px 40px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid #262626">
+<div style="display: flex; align-items: center; gap: 28px; flex-wrap: wrap">
+<a href="#" style="display: flex; align-items: center; gap: 10px; font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 700; letter-spacing: 0.5px">
+<svg width="30" height="30" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="{{accent}}"></rect><path d="M44 19.5 A17 17 0 1 0 44 44.5" fill="none" stroke="#FFFFFF" stroke-linecap="round" style="stroke-width: 9"></path><circle cx="47" cy="32" r="6" fill="#9DB4FF"></circle></svg>CO-FARER</a>
+<nav aria-label="Main" style="display: flex; gap: 22px">
+<a href="#" aria-current="page" style="padding-bottom: 6px; border-bottom: 2px solid {{ink}}">My trips</a>
+<a href="#" style="color: #A39E97">My settings</a>
+</nav>
+</div>
+<div style="display: flex; align-items: center; gap: 12px">
+<span style="width: 34px; height: 34px; border-radius: 50%; background: #F26B3A; color: #111; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center">MR</span>
+</div>
+</header>
+
+<section style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end; justify-content: space-between">
+<div>
+<p style="margin: 0 0 10px; color: #A39E97; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase">Hi Maya · 3 trips on the go</p>
+<h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 92px; line-height: 0.9; letter-spacing: -1px; text-transform: uppercase">Where to<br>next<span style="color: {{ink}}">?</span></h1>
+</div>
+<div style="display: flex; gap: 10px; flex-wrap: wrap">
+<button style="height: 44px; padding: 0 20px; border-radius: 999px; border: 1px solid #3A3A3A; background: transparent; color: #F2EFEA; font-size: 14px">Join with a code</button>
+<button style="height: 44px; padding: 0 22px; border-radius: 999px; border: none; background: {{accent}}; color: #FFFFFF; font-size: 14px; font-weight: 600">+ Plan a trip</button>
+</div>
+</section>
+
+<section style="display: flex; flex-wrap: wrap; gap: 24px">
+<article style="flex: 7 1 600px; position: relative; min-height: 420px; border-radius: 20px; overflow: hidden">
+<dc-import name="Scene" kind="lake" hint-size="100%,420px"></dc-import>
+<div style="position: absolute; top: 16px; left: 16px; padding: 4px 12px; border-radius: 999px; background: {{accent}}; color: #FFF; font-size: 12px; font-weight: 600">Next up · in 112 days</div>
+<div style="position: absolute; left: 16px; right: 16px; bottom: 16px; background: rgba(17,17,17,0.88); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap">
+<div>
+<span style="display: block; font-family: 'Barlow Condensed', sans-serif; font-size: 44px; font-weight: 700; line-height: 0.95; text-transform: uppercase">Cachuma Lake</span>
+<span style="color: #D6D2CC; font-size: 13px">Mar 19 – 21 · Santa Barbara County, CA</span>
+</div>
+<div style="display: flex"><sc-for list="{{crew}}" as="p" hint-placeholder-count="6"><span title="{{p.n}}" style="width: 32px; height: 32px; border-radius: 50%; background: {{p.c}}; color: #111; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; border: 2px solid #1B1B1B; margin-left: {{p.ml}}">{{p.i}}</span></sc-for></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px" aria-label="Dates done, housing voting, travel nearly done, activities and notes open">
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="5">
+<div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 6px; border-radius: 3px; background: {{s.bar}}"></span><span style="font-size: 12px; color: {{s.fg}}">{{s.label}}</span></div>
+</sc-for>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap">
+<span style="color: #D6D2CC; font-size: 13px">Housing vote closes Mar 1</span>
+<button style="height: 40px; padding: 0 18px; border-radius: 999px; border: none; background: {{accent}}; color: #FFFFFF; font-size: 14px; font-weight: 600">Open trip</button>
+</div>
+</div>
+</article>
+
+<article style="flex: 5 1 380px; background: #1B1B1B; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<div>
+<h2 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-size: 30px; font-weight: 700; text-transform: uppercase">Waiting on you</h2>
+<p style="margin: 2px 0 0; color: #A39E97; font-size: 13px">Things only you can do, across all trips</p>
+</div>
+<sc-for list="{{todos}}" as="t" hint-placeholder-count="4">
+<div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #232323; border-radius: 14px">
+<span style="width: 4px; align-self: stretch; border-radius: 2px; background: {{t.c}}"></span>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 600">{{t.what}}</span><span style="color: #A39E97; font-size: 12px">{{t.trip}}</span></div>
+<button style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid {{ink}}; background: transparent; color: #F2EFEA; font-size: 13px; flex-shrink: 0">{{t.cta}}</button>
+</div>
+</sc-for>
+</article>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: baseline">
+<h2 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-size: 30px; font-weight: 700; text-transform: uppercase">All trips</h2>
+<div style="display: flex; gap: 8px" role="group" aria-label="Filter trips">
+<button style="height: 34px; padding: 0 14px; border-radius: 999px; border: none; background: {{accent}}; color: #FFF; font-size: 13px; font-weight: 600">Upcoming</button>
+<button style="height: 34px; padding: 0 14px; border-radius: 999px; border: none; background: #262626; color: #F2EFEA; font-size: 13px">Past</button>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px">
+<sc-for list="{{trips}}" as="t" hint-placeholder-count="4">
+<article style="background: #1B1B1B; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; opacity: {{t.op}}">
+<div style="position: relative; height: 150px"><dc-import name="Scene" kind="{{t.kind}}" hint-size="100%,150px"></dc-import><span style="position: absolute; top: 10px; left: 10px; padding: 3px 10px; border-radius: 999px; background: rgba(17,17,17,0.85); color: {{t.pillFg}}; font-size: 12px; font-weight: 600">{{t.stage}}</span></div>
+<div style="padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 700; text-transform: uppercase; line-height: 1">{{t.name}}</span>
+<span style="color: #A39E97; font-size: 13px">{{t.when}}</span>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px">
+<div style="display: flex"><sc-for list="{{t.faces}}" as="p" hint-placeholder-count="4"><span style="width: 26px; height: 26px; border-radius: 50%; background: {{p.c}}; border: 2px solid #1B1B1B; margin-left: {{p.ml}}"></span></sc-for></div>
+<span style="color: #A39E97; font-size: 12px">{{t.count}}</span>
+</div>
+</div>
+</article>
+</sc-for>
+<button style="min-height: 280px; border-radius: 20px; border: 2px dashed #3A3A3A; background: transparent; color: #A39E97; font-size: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px"><span style="font-family: 'Barlow Condensed', sans-serif; font-size: 44px; color: {{ink}}; line-height: 1">+</span>Start a new trip</button>
+</div>
+</section>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","options":["#2A4AA8","#1A2F6E","#3A5FCD","#5277E0"],"default":"#2A4AA8"},"$preview":{"width":1280,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const accent = this.props.accent ?? '#2A4AA8';
+    const inks = { '#1A2F6E': '#8EA6F0', '#2A4AA8': '#9DB4FF', '#3A5FCD': '#A9BFFF', '#5277E0': '#B7CAFF' };
+    const ink = inks[accent] || '#9DB4FF';
+    const bright = accent === '#1A2F6E' ? '#3A5FCD' : accent;
+    const pal = ['#F26B3A', '#E9C46A', '#7FB7BE', '#B8A1D9', '#9CC59A', '#E39AA8', '#8FB3E0', '#D9A46B'];
+    const crew = [['MR', 'Maya'], ['JL', 'Jordan'], ['SK', 'Sam'], ['LT', 'Lee'], ['CB', 'Casey'], ['RT', 'Riley']]
+      .map(([i, n], k) => ({ i, n, c: pal[k], ml: k ? '-9px' : '0' }));
+    const steps = [
+      { label: 'Dates ✓', bar: '#B9E3A1', fg: '#B9E3A1' },
+      { label: 'Housing', bar: bright, fg: '#F2EFEA' },
+      { label: 'Travel', bar: bright, fg: '#F2EFEA' },
+      { label: 'Activities', bar: '#3A3A3A', fg: '#A39E97' },
+      { label: 'Notes', bar: '#3A3A3A', fg: '#A39E97' }
+    ];
+    const todos = [
+      { what: 'Vote on housing', trip: 'Cachuma Lake · closes Mar 1', cta: 'Vote', c: bright },
+      { what: 'Add your free days', trip: 'Big Sur weekend · 3 of 5 have', cta: 'Add', c: bright },
+      { what: 'Set your budget', trip: 'Big Sur weekend', cta: 'Set', c: '#F4B183' },
+      { what: 'Accept invite from Jordan', trip: 'Joshua Tree stargazing', cta: 'Join', c: '#E9C46A' }
+    ];
+    const faces = (n, start) => Array.from({ length: Math.min(n, 4) }, (_, k) => ({ c: pal[(start + k) % 8], ml: k ? '-8px' : '0' }));
+    const trips = [
+      { name: 'Cachuma Lake', when: 'Mar 19 – 21 · booked dates', kind: 'lake', stage: 'Voting on housing', pillFg: ink, faces: faces(6, 0), count: '6 going', op: 1 },
+      { name: 'Big Sur weekend', when: 'April · dates not picked', kind: 'trail', stage: 'Picking dates', pillFg: '#E9C46A', faces: faces(5, 2), count: '5 going', op: 1 },
+      { name: 'Joshua Tree', when: 'May · invite pending', kind: 'camp', stage: 'Invited', pillFg: '#F4B183', faces: faces(4, 1), count: '4 going', op: 1 }
+    ];
+    return { accent, ink, crew, steps, todos, trips };
+  }
+}
+</script>
+</body>
+</html>

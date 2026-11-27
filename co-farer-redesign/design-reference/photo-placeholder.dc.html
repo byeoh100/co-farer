@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Photo stand-in</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 100%; height: 100%; overflow: hidden; background: #2E4A62">
+<sc-if value="{{isLake}}" hint-placeholder-val="{{ true }}">
+<svg viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" role="img" aria-label="Lake at sunset">
+<rect width="400" height="250" fill="#F2A65A"></rect>
+<rect y="0" width="400" height="70" fill="#E8875A"></rect>
+<circle cx="292" cy="118" r="34" fill="#FFD9A0"></circle>
+<path d="M0 150 L70 112 L130 138 L210 96 L290 140 L350 118 L400 134 L400 250 L0 250 Z" fill="#8C566E"></path>
+<path d="M0 168 L90 140 L170 160 L260 132 L330 158 L400 150 L400 250 L0 250 Z" fill="#5A3F58"></path>
+<rect y="176" width="400" height="74" fill="#2E4A62"></rect>
+<rect x="252" y="188" width="80" height="4" rx="2" fill="#F6C27E"></rect>
+<rect x="266" y="200" width="52" height="4" rx="2" fill="#F6C27E"></rect>
+<rect x="276" y="212" width="32" height="4" rx="2" fill="#F6C27E"></rect>
+<path d="M40 176 L56 120 L72 176 Z" fill="#2B2230"></path>
+<path d="M60 176 L70 140 L80 176 Z" fill="#2B2230"></path>
+</svg>
+</sc-if>
+<sc-if value="{{isYurt}}" hint-placeholder-val="{{ false }}">
+<svg viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" role="img" aria-label="Yurt on a hillside">
+<rect width="400" height="250" fill="#A9CFE0"></rect>
+<circle cx="70" cy="60" r="22" fill="#FFF1C9"></circle>
+<path d="M0 140 L80 100 L170 128 L260 88 L400 130 L400 250 L0 250 Z" fill="#7FA77A"></path>
+<path d="M0 180 L120 160 L260 176 L400 158 L400 250 L0 250 Z" fill="#A9C38A"></path>
+<rect x="150" y="150" width="120" height="60" fill="#F2E9DA"></rect>
+<path d="M140 152 L210 106 L280 152 Z" fill="#C8633A"></path>
+<rect x="198" y="170" width="24" height="40" rx="3" fill="#5B3F2C"></rect>
+<rect x="160" y="166" width="22" height="16" rx="2" fill="#8BB8CF"></rect>
+<rect x="238" y="166" width="22" height="16" rx="2" fill="#8BB8CF"></rect>
+<rect x="132" y="208" width="156" height="8" fill="#8A6545"></rect>
+<path d="M320 186 L334 140 L348 186 Z" fill="#3F6E4A"></path>
+<path d="M346 190 L362 132 L378 190 Z" fill="#355E40"></path>
+</svg>
+</sc-if>
+<sc-if value="{{isCabin}}" hint-placeholder-val="{{ false }}">
+<svg viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" role="img" aria-label="Cabin by the water at dusk">
+<rect width="400" height="250" fill="#3D4C6E"></rect>
+<circle cx="320" cy="56" r="16" fill="#F3E7C8"></circle>
+<path d="M0 170 L40 90 L80 170 Z" fill="#1F2E2A"></path>
+<path d="M50 172 L95 70 L140 172 Z" fill="#24352F"></path>
+<path d="M300 172 L340 96 L380 172 Z" fill="#1F2E2A"></path>
+<rect x="150" y="122" width="120" height="58" fill="#8B5A3C"></rect>
+<path d="M140 126 L210 84 L280 126 Z" fill="#4A2E22"></path>
+<rect x="166" y="138" width="24" height="20" fill="#FFC46B"></rect>
+<rect x="230" y="138" width="24" height="20" fill="#FFC46B"></rect>
+<rect x="198" y="146" width="22" height="34" fill="#3A2418"></rect>
+<rect y="180" width="400" height="70" fill="#22344F"></rect>
+<rect x="166" y="194" width="24" height="4" rx="2" fill="#C9A35C"></rect>
+<rect x="230" y="204" width="24" height="4" rx="2" fill="#C9A35C"></rect>
+</svg>
+</sc-if>
+<sc-if value="{{isCamp}}" hint-placeholder-val="{{ false }}">
+<svg viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" role="img" aria-label="Tent and campfire at night">
+<rect width="400" height="250" fill="#1E2A44"></rect>
+<circle cx="60" cy="40" r="2" fill="#F3E7C8"></circle>
+<circle cx="140" cy="70" r="2" fill="#F3E7C8"></circle>
+<circle cx="250" cy="34" r="2" fill="#F3E7C8"></circle>
+<circle cx="330" cy="80" r="2" fill="#F3E7C8"></circle>
+<circle cx="200" cy="58" r="1.5" fill="#F3E7C8"></circle>
+<path d="M0 160 L70 120 L150 150 L240 112 L330 148 L400 128 L400 250 L0 250 Z" fill="#243A33"></path>
+<rect y="178" width="400" height="72" fill="#2D3B2F"></rect>
+<path d="M120 196 L180 118 L240 196 Z" fill="#E8743B"></path>
+<path d="M172 196 L180 150 L188 196 Z" fill="#7A3416"></path>
+<path d="M286 196 C280 180 292 170 296 158 C302 172 312 178 306 196 Z" fill="#FFB347"></path>
+<rect x="274" y="194" width="44" height="6" rx="3" fill="#6B4A32"></rect>
+</svg>
+</sc-if>
+<sc-if value="{{isKayak}}" hint-placeholder-val="{{ false }}">
+<svg viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" role="img" aria-label="Kayak on the lake">
+<rect width="400" height="250" fill="#2F7F8F"></rect>
+<rect x="30" y="50" width="90" height="5" rx="2.5" fill="#7CC3C8"></rect>
+<rect x="250" y="70" width="110" height="5" rx="2.5" fill="#7CC3C8"></rect>
+<rect x="60" y="200" width="120" height="5" rx="2.5" fill="#7CC3C8"></rect>
+<rect x="280" y="190" width="80" height="5" rx="2.5" fill="#7CC3C8"></rect>
+<ellipse cx="200" cy="138" rx="118" ry="20" fill="#F26B3A"></ellipse>
+<ellipse cx="200" cy="134" rx="40" ry="9" fill="#9E3A17"></ellipse>
+<circle cx="200" cy="104" r="13" fill="#F3D2B5"></circle>
+<rect x="188" y="114" width="24" height="22" rx="8" fill="#F2C14E"></rect>
+<rect x="120" y="96" width="160" height="6" rx="3" fill="#E9E2D3" transform="rotate(-18 200 99)"></rect>
+</svg>
+</sc-if>
+<sc-if value="{{isTrail}}" hint-placeholder-val="{{ false }}">
+<svg viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" role="img" aria-label="Hiking trail through golden hills">
+<rect width="400" height="250" fill="#F3D9A4"></rect>
+<path d="M0 120 L90 80 L190 116 L300 70 L400 104 L400 250 L0 250 Z" fill="#C9A66B"></path>
+<path d="M0 160 L130 130 L250 150 L400 128 L400 250 L0 250 Z" fill="#B48A4E"></path>
+<path d="M170 250 C190 210 240 200 220 170 C206 150 250 140 268 130 L278 134 C262 144 226 152 236 172 C254 204 214 214 204 250 Z" fill="#EBCF94"></path>
+<circle cx="80" cy="150" r="22" fill="#556B2F"></circle>
+<rect x="77" y="168" width="6" height="22" fill="#4A3520"></rect>
+<circle cx="330" cy="140" r="18" fill="#4E6329"></circle>
+<rect x="327" y="154" width="6" height="20" fill="#4A3520"></rect>
+</svg>
+</sc-if>
+<sc-if value="{{isBoat}}" hint-placeholder-val="{{ false }}">
+<svg viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" role="img" aria-label="Small tour boat on the lake">
+<rect width="400" height="250" fill="#BFD9E8"></rect>
+<path d="M0 130 L100 100 L200 124 L300 96 L400 120 L400 250 L0 250 Z" fill="#7E9F84"></path>
+<rect y="140" width="400" height="110" fill="#3E7CA8"></rect>
+<path d="M130 160 L280 160 L262 190 L148 190 Z" fill="#F4F1EA"></path>
+<rect x="170" y="134" width="70" height="26" rx="4" fill="#E2DCCF"></rect>
+<rect x="180" y="140" width="16" height="12" fill="#3E7CA8"></rect>
+<rect x="206" y="140" width="16" height="12" fill="#3E7CA8"></rect>
+<path d="M80 60 l10 -6 l10 6 l10 -6" fill="none" stroke="#3B4A5A"></path>
+<path d="M300 44 l8 -5 l8 5 l8 -5" fill="none" stroke="#3B4A5A"></path>
+</svg>
+</sc-if>
+<sc-if value="{{isTaco}}" hint-placeholder-val="{{ false }}">
+<svg viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" role="img" aria-label="Plate of tacos">
+<rect width="400" height="250" fill="#C8553D"></rect>
+<circle cx="200" cy="130" r="98" fill="#F5EBDC"></circle>
+<path d="M120 150 A60 60 0 0 1 240 150 Z" fill="#F2C46D"></path>
+<path d="M170 168 A60 60 0 0 1 290 168 Z" fill="#E8B456"></path>
+<rect x="134" y="132" width="90" height="12" rx="6" fill="#4F7D3A"></rect>
+<rect x="186" y="150" width="90" height="12" rx="6" fill="#B5402A"></rect>
+<circle cx="300" cy="80" r="16" fill="#6FA34B"></circle>
+</svg>
+</sc-if>
+<sc-if value="{{isBbq}}" hint-placeholder-val="{{ false }}">
+<svg viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" role="img" aria-label="Barbecue grill">
+<rect width="400" height="250" fill="#3A2A22"></rect>
+<path d="M120 196 C110 170 136 160 140 138 C150 160 164 168 156 196 Z" fill="#F26B3A"></path>
+<path d="M190 196 C180 166 206 156 210 130 C222 156 236 168 226 196 Z" fill="#F7A14A"></path>
+<path d="M260 196 C250 172 274 162 278 142 C288 162 300 170 292 196 Z" fill="#F26B3A"></path>
+<rect x="90" y="110" width="220" height="8" rx="4" fill="#1C1C1C"></rect>
+<rect x="90" y="128" width="220" height="8" rx="4" fill="#1C1C1C"></rect>
+<rect x="120" y="92" width="70" height="22" rx="10" fill="#8B3A2B"></rect>
+<rect x="210" y="94" width="70" height="20" rx="10" fill="#9C4630"></rect>
+<rect x="80" y="196" width="240" height="14" rx="4" fill="#1C1C1C"></rect>
+</svg>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"kind":{"editor":"enum","options":["lake","yurt","cabin","camp","kayak","trail","boat","taco","bbq"],"default":"lake"},"$preview":{"width":400,"height":250}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const k = this.props.kind ?? 'lake';
+    return {
+      isLake: k === 'lake', isYurt: k === 'yurt', isCabin: k === 'cabin', isCamp: k === 'camp',
+      isKayak: k === 'kayak', isTrail: k === 'trail', isBoat: k === 'boat', isTaco: k === 'taco', isBbq: k === 'bbq'
+    };
+  }
+}
+</script>
+</body>
+</html>

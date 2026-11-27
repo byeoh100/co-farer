@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Co-farer trip page, Midnight</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+body{margin:0;background:#111111}
+a{color:#F2EFEA;text-decoration:none}a:hover{color:#FFFFFF}
+button{font-family:inherit;cursor:pointer}
+.scroll{overflow-y:auto;scrollbar-width:thin;scrollbar-color:#3A3A3A transparent;padding-right:6px;margin-right:-6px}
+.scroll::-webkit-scrollbar{width:6px}.scroll::-webkit-scrollbar-thumb{background:#3A3A3A;border-radius:3px}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #111111; color: #F2EFEA; font-family: Inter, system-ui, sans-serif; font-size: 14px">
+<div style="max-width: 1280px; margin: 0 auto; padding: 20px 32px 40px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid #262626">
+<div style="display: flex; align-items: center; gap: 28px; flex-wrap: wrap">
+<a href="#" style="font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 700; letter-spacing: 0.5px">CO-FARER</a>
+<nav aria-label="Main" style="display: flex; gap: 22px">
+<a href="#" style="color: #A39E97">My trips</a>
+<a href="#" aria-current="page" style="padding-bottom: 6px; border-bottom: 2px solid {{ink}}">Cachuma Lake</a>
+<a href="#" style="color: #A39E97">My settings</a>
+</nav>
+</div>
+<div style="display: flex; align-items: center; gap: 14px">
+<div style="display: flex" aria-label="6 travelers">
+<sc-for list="{{avatars}}" as="p" hint-placeholder-count="6">
+<span style="width: 34px; height: 34px; border-radius: 50%; background: {{p.c}}; color: #111; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; border: 2px solid #111; margin-left: {{p.ml}}">{{p.i}}</span>
+</sc-for>
+</div>
+<button style="height: 40px; padding: 0 18px; border-radius: 999px; border: none; background: {{accent}}; color: #FFFFFF; font-size: 14px; font-weight: 600">Invite</button>
+</div>
+</header>
+
+<section style="display: flex; flex-wrap: wrap; gap: 24px; align-items: stretch">
+<div style="flex: 1 1 380px; display: flex; flex-direction: column; justify-content: space-between; gap: 18px; padding: 8px 0">
+<div>
+<p style="margin: 0 0 10px; color: #A39E97; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase">Spring break · 6 travelers</p>
+<h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 92px; line-height: 0.9; letter-spacing: -1px; text-transform: uppercase">Cachuma<br>Lake<span style="color: {{ink}}">.</span></h1>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<span style="padding: 8px 14px; border-radius: 999px; background: #1E1E1E; font-size: 13px">Santa Barbara County, CA</span>
+<span style="padding: 8px 14px; border-radius: 999px; background: #1E1E1E; font-size: 13px">Leaving campus Fri 9 am</span>
+<span style="padding: 8px 14px; border-radius: 999px; background: {{accent}}; color: #FFFFFF; font-size: 13px; font-weight: 600">2 nights</span>
+</div>
+</div>
+
+<div style="flex: 1.5 1 520px; background: #1B1B1B; border-radius: 20px; padding: 20px 22px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap">
+<div style="display: flex; align-items: baseline; gap: 12px">
+<h2 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 700; text-transform: uppercase">Mar 19 – 21</h2>
+<span style="padding: 4px 10px; border-radius: 999px; background: #2A3A25; color: #B9E3A1; font-size: 12px; font-weight: 600">Locked</span>
+</div>
+<button style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #3A3A3A; background: transparent; color: #F2EFEA; font-size: 13px">Open calendar</button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 6px; align-items: end" aria-label="People free per day, March 13 to 26">
+<sc-for list="{{days}}" as="d" hint-placeholder-count="14">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+<div style="width: 100%; height: 84px; display: flex; align-items: flex-end; background: #232323; border-radius: 8px; overflow: hidden">
+<div style="width: 100%; height: {{d.h}}; background: {{d.bar}}; border-radius: 8px"></div>
+</div>
+<span style="font-size: 11px; color: #A39E97">{{d.wd}}</span>
+<span style="font-size: 14px; font-weight: 600; color: {{d.num}}">{{d.n}}</span>
+</div>
+</sc-for>
+</div>
+<p style="margin: 0; font-size: 13px; color: #A39E97">All 6 free on the locked dates · bar height = people free that day</p>
+</div>
+</section>
+
+<section style="display: flex; flex-wrap: wrap; gap: 24px">
+<article style="flex: 7 1 600px; background: #1B1B1B; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap">
+<div>
+<h2 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-size: 30px; font-weight: 700; text-transform: uppercase">Where we stay</h2>
+<p style="margin: 2px 0 0; color: #A39E97; font-size: 13px">3 options · voting closes Mar 1</p>
+</div>
+<button style="height: 40px; padding: 0 18px; border-radius: 999px; border: none; background: {{accent}}; color: #FFFFFF; font-size: 14px; font-weight: 600">Open housing</button>
+</div>
+<div style="position: relative; height: 300px; border-radius: 16px; overflow: hidden">
+<dc-import name="Scene" kind="yurt" hint-size="100%,300px"></dc-import>
+<div style="position: absolute; left: 16px; right: 16px; bottom: 16px; display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap">
+<div style="background: rgba(17,17,17,0.85); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px">
+<span style="align-self: flex-start; padding: 3px 10px; border-radius: 999px; background: {{accent}}; color: #FFFFFF; font-size: 12px; font-weight: 600">Leading</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 30px; font-weight: 700; text-transform: uppercase">Lakeview Yurt</span>
+<span style="color: #D6D2CC; font-size: 13px">Sleeps 6 · 2 min to the water · fits everyone's housing budget</span>
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; margin-top: 6px" aria-label="Picked by Maya, Jordan, Sam and Lee">
+<sc-for list="{{yurtSlots}}" as="s" hint-placeholder-count="6"><span title="{{s.who}}" style="height: 8px; border-radius: 4px; background: {{s.c}}"></span></sc-for>
+</div>
+</div>
+<div style="background: rgba(17,17,17,0.85); border-radius: 14px; padding: 12px 16px; text-align: right">
+<span style="display: block; font-family: 'Barlow Condensed', sans-serif; font-size: 34px; font-weight: 700">$48</span>
+<span style="color: #D6D2CC; font-size: 12px">per person · $288 total</span>
+</div>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<div style="display: flex; gap: 12px; background: #232323; border-radius: 14px; padding: 10px; align-items: center">
+<div style="width: 96px; height: 72px; border-radius: 10px; overflow: hidden; flex-shrink: 0"><dc-import name="Scene" kind="camp" hint-size="96px,72px"></dc-import></div>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px">
+<span style="font-weight: 600">Campsite loop B</span>
+<span style="color: #A39E97; font-size: 13px">$15 / person · <span style="color: #B9E3A1">fits everyone</span></span>
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px" aria-label="Picked by Casey and Riley"><sc-for list="{{campSlots}}" as="s" hint-placeholder-count="6"><span title="{{s.who}}" style="height: 6px; border-radius: 3px; background: {{s.c}}"></span></sc-for></div>
+</div>
+</div>
+<div style="display: flex; gap: 12px; background: #232323; border-radius: 14px; padding: 10px; align-items: center">
+<div style="width: 96px; height: 72px; border-radius: 10px; overflow: hidden; flex-shrink: 0"><dc-import name="Scene" kind="cabin" hint-size="96px,72px"></dc-import></div>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px">
+<span style="font-weight: 600">Lakeside cabin</span>
+<span style="color: #A39E97; font-size: 13px">$92 / person · <span style="color: #F4B183">over budget for 2</span></span>
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px" aria-label="No picks yet"><sc-for list="{{emptySlots}}" as="s" hint-placeholder-count="6"><span style="height: 6px; border-radius: 3px; background: {{s.c}}"></span></sc-for></div>
+</div>
+</div>
+</div>
+</article>
+
+<div style="flex: 5 1 380px; display: flex; flex-direction: column; gap: 24px">
+<article style="background: #1B1B1B; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
+<div>
+<h2 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-size: 30px; font-weight: 700; text-transform: uppercase">Getting there</h2>
+<p style="margin: 2px 0 0; color: #A39E97; font-size: 13px">From campus · 2 cars, 1 flying</p>
+</div>
+<span style="padding: 6px 12px; border-radius: 999px; background: {{accentSoft}}; color: {{ink}}; font-size: 12px; font-weight: 600">1 seat left</span>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; background: #232323; border-radius: 14px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-weight: 600">Maya's car</span>
+<div style="display: flex; gap: 6px" aria-label="Maya, Jordan and Sam, 1 of 4 seats open">
+<span title="Maya" style="width: 26px; height: 26px; border-radius: 50%; background: #F26B3A"></span>
+<span title="Jordan" style="width: 26px; height: 26px; border-radius: 50%; background: #E9C46A"></span>
+<span title="Sam" style="width: 26px; height: 26px; border-radius: 50%; background: #7FB7BE"></span>
+<span style="width: 26px; height: 26px; border-radius: 50%; border: 2px dashed #5A5650; box-sizing: border-box"></span>
+</div>
+</div>
+<button style="height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid {{ink}}; background: transparent; color: #F2EFEA; font-size: 13px">Claim seat</button>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; background: #232323; border-radius: 14px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-weight: 600">Lee's car</span>
+<div style="display: flex; gap: 6px" aria-label="Lee and Casey, 2 of 2 seats taken">
+<span title="Lee" style="width: 26px; height: 26px; border-radius: 50%; background: #B8A1D9"></span>
+<span title="Casey" style="width: 26px; height: 26px; border-radius: 50%; background: #9CC59A"></span>
+</div>
+</div>
+<span style="color: #A39E97; font-size: 13px">Full</span>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; background: #232323; border-radius: 14px">
+<div style="display: flex; align-items: center; gap: 10px">
+<span title="Riley" style="width: 26px; height: 26px; border-radius: 50%; background: #E39AA8"></span>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 600">Riley flies in</span><span style="color: #A39E97; font-size: 13px">Lands SBA Fri 3:10 pm</span></div>
+</div>
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#A39E97" aria-hidden="true"><path d="M2 16l20-6-20-6 4 6-4 6z"></path></svg>
+</div>
+<p style="margin: 0; color: #A39E97; font-size: 13px">Gas about $11 per person, split in each car</p>
+</article>
+
+<article style="background: #1B1B1B; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: baseline">
+<h2 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 700; text-transform: uppercase">Your essentials</h2>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 700">$63 <span style="color: #A39E97; font-size: 18px">of $90</span></span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; font-size: 13px"><span>Housing</span><span style="color: #A39E97">$48 of $60</span></div>
+<div style="height: 8px; background: #2A2A2A; border-radius: 4px"><div style="width: 80%; height: 8px; background: {{bright}}; border-radius: 4px"></div></div>
+<div style="display: flex; justify-content: space-between; font-size: 13px; margin-top: 4px"><span>Gas</span><span style="color: #A39E97">$15 of $30</span></div>
+<div style="height: 8px; background: #2A2A2A; border-radius: 4px"><div style="width: 50%; height: 8px; background: {{bright}}; border-radius: 4px"></div></div>
+</div>
+</article>
+</div>
+</section>
+
+<section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px">
+<sc-for list="{{boards}}" as="b" hint-placeholder-count="2">
+<article style="background: #1B1B1B; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 10px; height: 400px; box-sizing: border-box">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
+<div>
+<h2 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-size: 30px; font-weight: 700; text-transform: uppercase">{{b.title}}</h2>
+<p style="margin: 2px 0 0; color: #A39E97; font-size: 13px">{{b.sub}}</p>
+</div>
+<button style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #3A3A3A; background: transparent; color: #F2EFEA; font-size: 13px">+ Suggest</button>
+</div>
+<div class="scroll" style="flex: 1; min-height: 0">
+<sc-for list="{{b.rows}}" as="r" hint-placeholder-count="6">
+<div style="display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid #262626">
+<span style="width: 22px; font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 700; color: {{r.rankColor}}">{{r.rank}}</span>
+<div style="width: 60px; height: 44px; border-radius: 10px; overflow: hidden; flex-shrink: 0"><dc-import name="Scene" kind="{{r.kind}}" hint-size="60px,44px"></dc-import></div>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px">
+<div style="display: flex; justify-content: space-between; gap: 8px"><span style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.title}}</span><span style="color: #A39E97; font-size: 12px; flex-shrink: 0">{{r.votes}}</span></div>
+<div style="height: 6px; background: #262626; border-radius: 3px"><div style="width: {{r.pct}}; height: 6px; background: {{r.barColor}}; border-radius: 3px"></div></div>
+<span style="font-size: 12px; color: {{r.subColor}}">{{r.sub}}</span>
+</div>
+</div>
+</sc-for>
+</div>
+</article>
+</sc-for>
+
+<article style="background: #1B1B1B; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 12px; height: 400px; box-sizing: border-box">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<div>
+<h2 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-size: 30px; font-weight: 700; text-transform: uppercase">Notes</h2>
+<p style="margin: 2px 0 0; color: #A39E97; font-size: 13px">7 notes · newest first</p>
+</div>
+<button style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #3A3A3A; background: transparent; color: #F2EFEA; font-size: 13px">+ Add note</button>
+</div>
+<div class="scroll" style="flex: 1; min-height: 0; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px">
+<sc-for list="{{notes}}" as="n" hint-placeholder-count="7">
+<span style="padding: 10px 14px; border-radius: 16px; background: {{n.bg}}; border-left: 3px solid {{n.c}}; color: {{n.fg}}">{{n.text}} <span style="color: {{n.c}}; font-size: 12px; font-weight: 600">· {{n.who}}</span></span>
+</sc-for>
+</div>
+</article>
+</section>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","options":["#2A4AA8","#1A2F6E","#3A5FCD","#5277E0"],"default":"#2A4AA8"},"$preview":{"width":1280,"height":1380}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const accent = this.props.accent ?? '#2A4AA8';
+    const inks = { '#1A2F6E': '#8EA6F0', '#2A4AA8': '#9DB4FF', '#3A5FCD': '#A9BFFF', '#5277E0': '#B7CAFF' };
+    const ink = inks[accent] || '#9DB4FF';
+    const bright = accent === '#1A2F6E' ? '#3A5FCD' : accent;
+    const accentSoft = accent + '40';
+
+    const people = {
+      Maya: '#F26B3A', Jordan: '#E9C46A', Sam: '#7FB7BE',
+      Lee: '#B8A1D9', Casey: '#9CC59A', Riley: '#E39AA8', Alex: '#6E6A64'
+    };
+    const avatars = [['MR', 'Maya'], ['JL', 'Jordan'], ['SK', 'Sam'], ['LT', 'Lee'], ['CB', 'Casey'], ['RT', 'Riley']]
+      .map(([i, n], k) => ({ i, c: people[n], ml: k ? '-10px' : '0' }));
+
+    const free = [2, 3, 3, 4, 5, 5, 6, 6, 6, 4, 3, 2, 2, 1];
+    const wds = ['S', 'S', 'M', 'T', 'W', 'T', 'F', 'S', 'S', 'M', 'T', 'W', 'T', 'F'];
+    const days = free.map((n, i) => {
+      const d = 13 + i;
+      const locked = d >= 19 && d <= 21;
+      return { n: d, wd: wds[i], h: Math.round((n / 6) * 100) + '%', bar: locked ? bright : '#4A4540', num: locked ? ink : '#F2EFEA' };
+    });
+
+    const rank = (rows) => rows.map((r, i) => ({
+      ...r,
+      rank: i + 1,
+      rankColor: i === 0 ? ink : '#6E6A64',
+      barColor: i === 0 ? bright : '#4A4540',
+      subColor: r.warn ? '#F4B183' : '#A39E97',
+      pct: Math.round((r.v / 6) * 100) + '%',
+      votes: r.v + (r.v === 1 ? ' vote' : ' votes')
+    }));
+    const boards = [
+      { title: 'Activities', sub: '6 ideas · ranked by votes', rows: rank([
+        { title: 'Kayak rental', sub: '~$25 · 2 hrs on the lake', kind: 'kayak', v: 5 },
+        { title: 'Sunset hike', sub: 'Free · Lakeview trail', kind: 'trail', v: 3 },
+        { title: 'Stargazing night', sub: 'Free · at camp', kind: 'camp', v: 3 },
+        { title: 'Lake swim', sub: 'Free · swim beach', kind: 'lake', v: 2 },
+        { title: 'Wildlife boat tour', sub: '~$30 · Sat morning', kind: 'boat', v: 1 },
+        { title: 'Nature center', sub: 'Free · 20 min walk', kind: 'cabin', v: 0 }
+      ]) },
+      { title: 'Food', sub: '5 spots · ranked by votes', rows: rank([
+        { title: 'Taco spot', sub: '~$14 · 15 min drive', kind: 'taco', v: 4 },
+        { title: 'Camp pancake breakfast', sub: '~$6 · we cook', kind: 'camp', v: 3 },
+        { title: 'BBQ house', sub: '▲ May not suit vegetarian (2)', kind: 'bbq', v: 2, warn: true },
+        { title: 'Solvang bakery', sub: '~$10 · 25 min drive', kind: 'cabin', v: 2 },
+        { title: 'Lakeside snack bar', sub: '~$8 · walkable', kind: 'lake', v: 1 }
+      ]) }
+    ];
+
+    const tint = (c) => c + '24';
+    const notes = [
+      ['I\'m bringing the speaker', 'Jordan'],
+      ['Don\'t forget sunscreen', 'Maya'],
+      ['Who has a camp stove?', 'Sam'],
+      ['Leaving campus 9 am Fri sharp', 'Lee'],
+      ['Can someone grab ice on the way?', 'Casey'],
+      ['I can pick up snacks at SBA', 'Riley'],
+      ['Can bring a cooler', 'Alex', true]
+    ].map(([text, who, gone]) => ({
+      text, who: gone ? who + ', has left' : who,
+      c: people[who], bg: gone ? 'transparent' : tint(people[who]), fg: gone ? '#8C877F' : '#F2EFEA'
+    }));
+
+    const slots = (names) => Array.from({ length: 6 }, (_, k) => names[k] ? { who: names[k], c: people[names[k]] } : { who: 'No pick', c: '#3A3A3A' });
+    const yurtSlots = slots(['Maya', 'Jordan', 'Sam', 'Lee']);
+    const campSlots = slots(['Casey', 'Riley']);
+    const emptySlots = slots([]);
+
+    return { accent, ink, bright, accentSoft, avatars, days, boards, notes, yurtSlots, campSlots, emptySlots };
+  }
+}
+</script>
+</body>
+</html>

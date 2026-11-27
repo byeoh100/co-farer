@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Co-farer sign in</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+body{margin:0;background:#111111}
+a{color:#9DB4FF;text-decoration:none}a:hover{text-decoration:underline}
+button,input{font-family:inherit}
+button{cursor:pointer}
+input::placeholder{color:#6E6A64}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #111111; color: #F2EFEA; font-family: Inter, system-ui, sans-serif; font-size: 14px; display: flex; flex-wrap: wrap">
+
+<section style="flex: 1.2 1 520px; position: relative; min-height: 780px; overflow: hidden">
+<dc-import name="Scene" kind="lake" hint-size="100%,780px"></dc-import>
+<div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(17,17,17,0.92) 0%, rgba(17,17,17,0.2) 55%, rgba(17,17,17,0) 100%)"></div>
+<div style="position: absolute; top: 28px; left: 32px; display: flex; align-items: center; gap: 10px; font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 700; letter-spacing: 0.5px">
+<svg width="30" height="30" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="{{accent}}"></rect><path d="M44 19.5 A17 17 0 1 0 44 44.5" fill="none" stroke="#FFFFFF" stroke-linecap="round" style="stroke-width: 9"></path><circle cx="47" cy="32" r="6" fill="#9DB4FF"></circle></svg>CO-FARER</div>
+<div style="position: absolute; left: 32px; right: 32px; bottom: 36px; display: flex; flex-direction: column; gap: 18px">
+<h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 96px; line-height: 0.88; letter-spacing: -1px; text-transform: uppercase">Plan it<br>together<span style="color: {{ink}}">.</span></h1>
+<p style="margin: 0; max-width: 440px; color: #D6D2CC; font-size: 16px; line-height: 1.5">Pick dates everyone's free, vote on where to stay, split the rides. One page for the whole group.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<span style="padding: 8px 14px; border-radius: 999px; background: rgba(17,17,17,0.75); font-size: 13px">✓ Dates everyone can make</span>
+<span style="padding: 8px 14px; border-radius: 999px; background: rgba(17,17,17,0.75); font-size: 13px">✓ Group votes</span>
+<span style="padding: 8px 14px; border-radius: 999px; background: rgba(17,17,17,0.75); font-size: 13px">✓ Seats and gas split</span>
+</div>
+</div>
+</section>
+
+<section style="flex: 1 1 420px; display: flex; align-items: center; justify-content: center; padding: 40px 32px; box-sizing: border-box">
+<div style="width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 20px">
+
+<sc-if value="{{invite}}" hint-placeholder-val="true">
+<div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: #1B1B1B; border-left: 3px solid #E9C46A">
+<span style="width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; background: #E9C46A; color: #111; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center">JL</span>
+<span><span style="font-weight: 600">Jordan</span> invited you to <span style="font-weight: 600">Cachuma Lake</span>. Sign in to join.</span>
+</div>
+</sc-if>
+
+<div>
+<h2 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-size: 44px; font-weight: 700; text-transform: uppercase; line-height: 1">{{title}}</h2>
+<p style="margin: 6px 0 0; color: #A39E97">{{sub}}</p>
+</div>
+
+<button style="height: 48px; border-radius: 999px; border: 1px solid #3A3A3A; background: #1B1B1B; color: #F2EFEA; font-size: 15px; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 10px">
+<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#F2EFEA" style="stroke-width: 2"></circle><path d="M12 7v10M7 12h10" stroke="#F2EFEA" style="stroke-width: 2"></path></svg>
+Continue with Google</button>
+
+<div style="display: flex; align-items: center; gap: 12px; color: #6E6A64; font-size: 12px"><span style="flex: 1; height: 1px; background: #262626"></span>or with email<span style="flex: 1; height: 1px; background: #262626"></span></div>
+
+<form style="display: flex; flex-direction: column; gap: 14px" onsubmit="return false">
+<label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 13px; font-weight: 500">Email</span>
+<input type="email" placeholder="you@school.edu" style="height: 46px; padding: 0 14px; border-radius: 12px; border: 1px solid #3A3A3A; background: #1B1B1B; color: #F2EFEA; font-size: 15px; outline-color: #9DB4FF"></label>
+<label style="display: flex; flex-direction: column; gap: 6px"><span style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 500">Password <a href="#" style="font-weight: 400">Forgot password?</a></span>
+<input type="password" placeholder="••••••••" style="height: 46px; padding: 0 14px; border-radius: 12px; border: 1px solid #3A3A3A; background: #1B1B1B; color: #F2EFEA; font-size: 15px; outline-color: #9DB4FF"></label>
+<button type="submit" style="height: 48px; border-radius: 999px; border: none; background: {{accent}}; color: #FFFFFF; font-size: 15px; font-weight: 600; margin-top: 4px">{{cta}}</button>
+</form>
+
+<p style="margin: 0; text-align: center; color: #A39E97">{{switchText}} <a href="#">{{switchLink}}</a></p>
+<p style="margin: 0; text-align: center; color: #6E6A64; font-size: 12px">By continuing you agree to the <a href="#" style="color: #A39E97; text-decoration: underline">Terms</a> and <a href="#" style="color: #A39E97; text-decoration: underline">Privacy</a>.</p>
+</div>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"mode":{"editor":"enum","options":["signin","signup"],"default":"signin"},"invite":{"editor":"boolean","default":true},"accent":{"editor":"color","options":["#2A4AA8","#1A2F6E","#3A5FCD","#5277E0"],"default":"#2A4AA8"},"$preview":{"width":1280,"height":820}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const accent = this.props.accent ?? '#2A4AA8';
+    const inks = { '#1A2F6E': '#8EA6F0', '#2A4AA8': '#9DB4FF', '#3A5FCD': '#A9BFFF', '#5277E0': '#B7CAFF' };
+    const ink = inks[accent] || '#9DB4FF';
+    const up = (this.props.mode ?? 'signin') === 'signup';
+    return {
+      accent, ink,
+      invite: this.props.invite ?? true,
+      title: up ? 'Create account' : 'Welcome back',
+      sub: up ? 'Takes a minute. Your friends are waiting.' : 'Sign in to see your trips.',
+      cta: up ? 'Create account' : 'Sign in',
+      switchText: up ? 'Already have an account?' : 'New to Co-farer?',
+      switchLink: up ? 'Sign in' : 'Create an account'
+    };
+  }
+}
+</script>
+</body>
+</html>
