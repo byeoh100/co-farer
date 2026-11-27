@@ -198,20 +198,17 @@ script for the file format; it passed on 2026-11-25 with two temporary
 `LOCAL_STUB_AUTH` or `ALLOW_DEBUG_ROUTES`. The instance role also needs
 `ssm:GetParameter` on `/cofarer/app-jwt-private-key`.
 
-### Google sign-in: to finish (needs you)
+### Google sign-in (set up 2026-11-26)
 
-Until this is done, "Continue with Google" lands on a Cognito error page;
-email codes work.
-
-1. In Google Cloud Console, create a project, then **APIs & Services → OAuth
-   consent screen**: External, app name Co-farer, your support email, scopes
-   `openid`, `email`, `profile`, and add `amazoncognito.com` (and later
-   `co-farer.com`) as authorized domains. While it's in "Testing", add your
-   friends' Gmail addresses as test users, or publish it.
-2. **Credentials → Create credentials → OAuth client ID → Web application**:
-   - Authorized JavaScript origin: `https://co-farer.auth.us-east-2.amazoncognito.com`
-   - Authorized redirect URI: `https://co-farer.auth.us-east-2.amazoncognito.com/oauth2/idpresponse`
-3. Store the client secret yourself:
-   `aws ssm put-parameter --profile cofarer --region us-east-2 --name /cofarer/google-client-secret --type SecureString --value 'SECRET'`
-4. Send the client ID (not secret) to Claude, who adds Google to the pool
-   and the app client.
+- Google Cloud: OAuth client `244031744732-eti0obgm35drcss55km0kdftoaamnovt.apps.googleusercontent.com`
+  (Web application), JavaScript origin `https://co-farer.auth.us-east-2.amazoncognito.com`,
+  redirect URI `https://co-farer.auth.us-east-2.amazoncognito.com/oauth2/idpresponse`,
+  scopes `openid email profile`, authorized domain `amazoncognito.com` (add `co-farer.com`
+  once registered). While the consent screen is in "Testing", only its listed test users can
+  sign in with Google.
+- Secret: SecureString `/cofarer/google-client-secret`.
+- Cognito: identity provider `Google` (maps `email`, `email_verified`, `name`; username = Google
+  `sub`), added to the `cofarer-web` client (`COGNITO` + `Google`). The client was updated
+  read-modify-write, since that API replaces every field.
+- Note: a Google account and an email-code account with the same address are two separate
+  Co-farer users (Cognito doesn't link them). Pick one way to sign in and stick with it.
