@@ -6,7 +6,7 @@ was created in Phase 2b and is imported here.
 
 | File | What |
 | --- | --- |
-| `ec2.tf` | The t4g.small server (Amazon Linux 2023 arm64), 20 GB encrypted gp3 disk, IMDSv2 only |
+| `ec2.tf` | The t4g.micro server (1 GB + 1 GB swap; change `instance_type` to grow) (Amazon Linux 2023 arm64), 20 GB encrypted gp3 disk, IMDSv2 only |
 | `bootstrap.sh.tftpl` | First-boot setup: Caddy, workerd as a locked-down systemd service, DuckDNS, log shipping, nightly S3 backup, security updates, weekly reboot |
 | `network.tf` | Security group (80 and 443 only, no SSH), Elastic IP |
 | `iam.tf` | The server's least-privilege role; the snapshot service's role |

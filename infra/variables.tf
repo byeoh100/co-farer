@@ -23,9 +23,9 @@ variable "duckdns_subdomain" {
 }
 
 variable "instance_type" {
-  description = "EC2 size. t4g.small: 2 Arm vCPUs, 2 GB."
+  description = "EC2 size. t4g.micro: 2 Arm vCPUs, 1 GB (plus 1 GB swap). Grow to t4g.small by changing this and applying: a few minutes' stop/start, same disk and address."
   type        = string
-  default     = "t4g.small"
+  default     = "t4g.micro"
 }
 
 variable "owner_user_id" {
