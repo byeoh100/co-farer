@@ -104,7 +104,10 @@ describe('session cookie encryption', () => {
     expect(sealed).not.toContain('secret-refresh')
     expect(await unseal(appPem, sealed)).toEqual({ sub: 'u1', rt: 'secret-refresh' })
     const [iv, ct] = sealed.split('.')
-    const flipped = `${iv}.${ct.slice(0, -2)}${ct.endsWith('A') ? 'B' : 'A'}${ct.slice(-1)}`
+    // Change one character of the ciphertext for a different one (never the same letter).
+    const at = ct.length - 2
+    const flipped = `${iv}.${ct.slice(0, at)}${ct[at] === 'A' ? 'B' : 'A'}${ct.slice(at + 1)}`
+    expect(flipped).not.toBe(sealed)
     expect(await unseal(appPem, flipped)).toBeNull()
     expect(await unseal(otherPem, sealed)).toBeNull()
     expect(await unseal(appPem, 'garbage')).toBeNull()
