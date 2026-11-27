@@ -39,7 +39,7 @@ export interface CognitoEnv extends AwsEnv {
   COGNITO_DOMAIN?: string
   COGNITO_CLIENT_ID?: string
   COGNITO_USER_POOL_ID?: string
-  /** The app's own origin, e.g. https://co-farer.com or http://localhost:8080. */
+  /** The app's own origin, e.g. https://co-farer.duckdns.org or http://localhost:8080. */
   APP_URL?: string
   /** Local development only; the server reads /cofarer/app-jwt-private-key. */
   APP_JWT_PRIVATE_KEY?: string

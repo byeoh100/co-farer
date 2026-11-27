@@ -31,9 +31,9 @@ beforeAll(async () => {
     COGNITO_DOMAIN: 'https://co-farer.auth.us-east-2.amazoncognito.com',
     COGNITO_CLIENT_ID: CLIENT,
     COGNITO_USER_POOL_ID: POOL,
-    APP_URL: 'https://co-farer.com',
+    APP_URL: 'https://co-farer.duckdns.org',
     APP_JWT_PRIVATE_KEY: appPem,
-    AUTH_JWT_ISSUER: 'https://co-farer.com',
+    AUTH_JWT_ISSUER: 'https://co-farer.duckdns.org',
   }
 })
 
@@ -70,7 +70,7 @@ describe('small helpers', () => {
     const g = new URL(authorizeUrl(ENV, { state: 's1', challenge, provider: 'google' }))
     expect(g.origin + g.pathname).toBe('https://co-farer.auth.us-east-2.amazoncognito.com/oauth2/authorize')
     expect(Object.fromEntries(g.searchParams)).toEqual({
-      response_type: 'code', client_id: CLIENT, redirect_uri: 'https://co-farer.com/auth/callback', scope: 'openid email profile',
+      response_type: 'code', client_id: CLIENT, redirect_uri: 'https://co-farer.duckdns.org/auth/callback', scope: 'openid email profile',
       state: 's1', code_challenge: challenge, code_challenge_method: 'S256', identity_provider: 'Google',
     })
     expect(new URL(authorizeUrl(ENV, { state: 's1', challenge, provider: 'email' })).searchParams.has('identity_provider')).toBe(false)
@@ -129,7 +129,7 @@ describe('the app token, checked by the SDK’s verifyJwt', () => {
     const t = await mintAppToken(ENV, appPem, { sub: 'u1', email: 'a@x.com', name: 'Ana' })
     const { result } = await verifyJwt(verifyCfg(), t)
     expect(result?.userId).toBe('u1')
-    expect(result?.claims).toMatchObject({ name: 'Ana', email: 'a@x.com', iss: 'https://co-farer.com' })
+    expect(result?.claims).toMatchObject({ name: 'Ana', email: 'a@x.com', iss: 'https://co-farer.duckdns.org' })
     expect((result!.claims.exp as number) - (result!.claims.iat as number)).toBe(15 * 60)
   })
   it('refuses no token, a forged token, a wrong issuer and an expired token', async () => {
@@ -155,7 +155,7 @@ function app() {
   return a
 }
 const req = (a: Hono<AppContext>, path: string, init: RequestInit = {}, env: Partial<CognitoEnv> = ENV) =>
-  a.request(`https://co-farer.com${path}`, init, env as never)
+  a.request(`https://co-farer.duckdns.org${path}`, init, env as never)
 const setCookies = (r: Response) => r.headers.getSetCookie()
 const cookieValue = (r: Response, name: string) => setCookies(r).find((c) => c.startsWith(`${name}=`))?.split(';')[0].slice(name.length + 1) ?? ''
 
@@ -200,7 +200,7 @@ describe('sign-in routes', () => {
     expect(cb.headers.get('Location')).toBe('/trip/abc')
     expect(session).toBeTruthy()
     const exchange = calls.find((c) => c.form.grant_type === 'authorization_code')!
-    expect(exchange.form).toMatchObject({ client_id: CLIENT, code: 'the-code', redirect_uri: 'https://co-farer.com/auth/callback' })
+    expect(exchange.form).toMatchObject({ client_id: CLIENT, code: 'the-code', redirect_uri: 'https://co-farer.duckdns.org/auth/callback' })
     expect(exchange.form.code_verifier).toBeTruthy()
 
     const s = (await (await req(a, '/api/auth/get-session', { headers: { cookie: `${SESSION_COOKIE}=${session}` } })).json()) as { user: unknown }
@@ -275,7 +275,7 @@ describe('sign-in routes', () => {
     expect(setCookies(r).some((c) => c.startsWith(`${SESSION_COOKIE}=;`))).toBe(true)
     const to = new URL(r.headers.get('Location')!)
     expect(to.origin + to.pathname).toBe('https://co-farer.auth.us-east-2.amazoncognito.com/logout')
-    expect(Object.fromEntries(to.searchParams)).toEqual({ client_id: CLIENT, logout_uri: 'https://co-farer.com/' })
+    expect(Object.fromEntries(to.searchParams)).toEqual({ client_id: CLIENT, logout_uri: 'https://co-farer.duckdns.org/' })
   })
 
   it('stays out of the way when Cognito isn’t configured (the DeepSpace build)', async () => {

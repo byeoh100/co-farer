@@ -127,7 +127,7 @@ Answers to the open questions in docs/MIGRATION.md:
 | --- | --- |
 | Google sign-in, or email codes only? | **Google sign-in** (with Cognito managed login) |
 | Profile picture uploads in v1? | **Initials only** for now. 2c is on hold; the initial-on-a-color fallback already exists. |
-| Domain | **co-farer.com** (unregistered as of 2026-11-25, per Verisign RDAP). Route 53 Domains refuses Free plan accounts, so register it at another registrar, or after switching to the Paid plan. DNS only needs an A record to the Elastic IP (Phase 3). |
+| Domain | **co-farer.duckdns.org** (free, from DuckDNS; claimed 2026-11-26). Points at `127.0.0.1` until Phase 3 sets the server's Elastic IP; the DuckDNS token is SecureString `/cofarer/duckdns-token`. co-farer.com was the first pick, dropped to avoid the cost (Route 53 also refuses Free plan accounts). Switching to a bought domain later means changing the Cognito callback and logout URLs and `APP_URL`. |
 | Terraform or CDK? | Not decided yet (Phase 3) |
 | Budget | "Co-farer monthly", $5: alerts at 85% and 100% actual, and 100% forecast |
 
@@ -139,7 +139,7 @@ Answers to the open questions in docs/MIGRATION.md:
 | --- | --- |
 | User pool | `cofarer` (`us-east-2_DHqzYR5y0`), Essentials tier. Email is the username; sign-in by a one-time email code or a password (no password needed); self sign-up on; Cognito's own email sender (50 emails a day). |
 | Sign-in domain | `https://co-farer.auth.us-east-2.amazoncognito.com`, managed login v2 with Cognito's default look |
-| App client | `cofarer-web` (`3ofnp5fam86b8s3j10barba1dl`): public (no secret), code grant + PKCE, scopes `openid email profile`; callbacks `http://localhost:8080/auth/callback` and `https://co-farer.com/auth/callback`; logout URLs `http://localhost:8080/` and `https://co-farer.com/`; ID and access tokens 15 minutes, refresh 30 days, revocation on |
+| App client | `cofarer-web` (`3ofnp5fam86b8s3j10barba1dl`): public (no secret), code grant + PKCE, scopes `openid email profile`; callbacks `http://localhost:8080/auth/callback` and `https://co-farer.duckdns.org/auth/callback`; logout URLs `http://localhost:8080/` and `https://co-farer.duckdns.org/` (co-farer.com removed 2026-11-26); ID and access tokens 15 minutes, refresh 30 days, revocation on |
 | Parameter Store | `/cofarer/app-jwt-private-key` (SecureString, the app's ES256 signing key), `/cofarer/app-jwt-public-key`, `/cofarer/cognito-user-pool-id`, `/cofarer/cognito-client-id`, `/cofarer/cognito-domain` |
 
 These were made with the CLI; Phase 3 imports them into the infrastructure code.
@@ -192,9 +192,9 @@ script for the file format; it passed on 2026-11-25 with two temporary
 ### Server environment (Phase 3)
 
 `COGNITO_DOMAIN`, `COGNITO_CLIENT_ID`, `COGNITO_USER_POOL_ID` (from the
-`/cofarer/cognito-*` parameters), `APP_URL=https://co-farer.com`,
+`/cofarer/cognito-*` parameters), `APP_URL=https://co-farer.duckdns.org`,
 `AUTH_JWT_PUBLIC_KEY` (from `/cofarer/app-jwt-public-key`),
-`AUTH_JWT_ISSUER=https://co-farer.com`. Never `APP_JWT_PRIVATE_KEY`,
+`AUTH_JWT_ISSUER=https://co-farer.duckdns.org`. Never `APP_JWT_PRIVATE_KEY`,
 `LOCAL_STUB_AUTH` or `ALLOW_DEBUG_ROUTES`. The instance role also needs
 `ssm:GetParameter` on `/cofarer/app-jwt-private-key`.
 
@@ -203,8 +203,8 @@ script for the file format; it passed on 2026-11-25 with two temporary
 - Google Cloud: OAuth client `244031744732-eti0obgm35drcss55km0kdftoaamnovt.apps.googleusercontent.com`
   (Web application), JavaScript origin `https://co-farer.auth.us-east-2.amazoncognito.com`,
   redirect URI `https://co-farer.auth.us-east-2.amazoncognito.com/oauth2/idpresponse`,
-  scopes `openid email profile`, authorized domain `amazoncognito.com` (add `co-farer.com`
-  once registered). While the consent screen is in "Testing", only its listed test users can
+  scopes `openid email profile`, authorized domain `amazoncognito.com` (`duckdns.org` can't be added: Google
+  refuses shared domains like it, and it isn't needed, since Google only redirects to Cognito). While the consent screen is in "Testing", only its listed test users can
   sign in with Google.
 - Secret: SecureString `/cofarer/google-client-secret`.
 - Cognito: identity provider `Google` (maps `email`, `email_verified`, `name`; username = Google
