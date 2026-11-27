@@ -58,9 +58,12 @@ describe('test-only sign-in', () => {
 
   it('accepts only short slugs and safe return paths', async () => {
     expect(testUser('carol-2')).toEqual({ id: 'test-carol-2', name: 'Carol 2', email: 'carol-2@deepspace.test' })
-    for (const bad of ['Alice', 'a b', 'x'.repeat(40), '../admin', '']) expect(testUser(bad)).toBeNull()
+    for (const bad of ['Alice', 'a b', 'x'.repeat(40), '../admin', '', 'bob-', 'a--b', '-a']) expect(testUser(bad)).toBeNull()
     const a = app()
     expect((await get(a, '/api/auth/test-login?user=Evil%20One', env('true'))).status).toBe(400)
+    expect((await get(a, '/api/auth/test-login?user=bob-', env('true'))).status).toBe(400)
+    // A malformed test cookie is ignored, not a crash.
+    expect((await get(a, '/api/auth/token', env('true'), { method: 'POST', headers: { cookie: `${TEST_COOKIE}=bob-` } })).status).toBe(404)
     expect((await get(a, '/api/auth/test-login?user=bob&returnTo=https%3A%2F%2Fevil.example', env('true'))).headers.get('location')).toBe('/trips')
   })
 })

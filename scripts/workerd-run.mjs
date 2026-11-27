@@ -25,8 +25,9 @@ const root = resolve(import.meta.dirname, '..')
 const dataDir = resolve(root, '.workerd-data')
 const keyFile = resolve(dataDir, 'stub-auth.json')
 
-// Options (Playwright uses all three): --port=N (default 8080),
-// --data=<folder under .workerd-data> (default "do"), --fresh (empty it first).
+// Options (Playwright uses the first three): --port=N (default 8080),
+// --data=<folder under .workerd-data> (default "do"), --fresh (empty it first),
+// --lan (listen on every network, not just this machine: test sign-in is on!).
 const userArgs = process.argv.slice(2)
 const opt = (name) => userArgs.find((a) => a.startsWith(`--${name}=`))?.split('=')[1]
 const port = Number(opt('port') ?? 8080)
@@ -106,8 +107,9 @@ const args = [
   '--experimental',
   `--directory-path=assets-disk=${resolve(root, 'dist/client')}`,
   `--directory-path=do-storage=${doDir}`,
-  `--socket-addr=http=*:${port}`,
-  ...userArgs.filter((a) => a !== '--aws' && a !== '--fresh' && !a.startsWith('--port=') && !a.startsWith('--data=')),
+  // This machine only, unless --lan: the local run has test sign-in on.
+  `--socket-addr=http=${userArgs.includes('--lan') ? '*' : '127.0.0.1'}:${port}`,
+  ...userArgs.filter((a) => a !== '--aws' && a !== '--fresh' && a !== '--lan' && !a.startsWith('--port=') && !a.startsWith('--data=')),
 ]
 console.log(`Co-farer on workerd → http://localhost:${port}   (Sign in → Cognito; test users: http://localhost:${port}/api/auth/test-login)`)
 const child = spawn(bin, args, { cwd: root, env, stdio: 'inherit' })

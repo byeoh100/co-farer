@@ -64,8 +64,14 @@ resource "aws_iam_role_policy" "deploy" {
       {
         Sid      = "UploadReleases"
         Effect   = "Allow"
-        Action   = ["s3:PutObject"]
+        Action   = ["s3:PutObject", "s3:PutObjectTagging"]
         Resource = "${aws_s3_bucket.main.arn}/releases/*"
+      },
+      {
+        Sid      = "ReadLatestPointer"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject"]
+        Resource = "${aws_s3_bucket.main.arn}/releases/latest.txt"
       },
       {
         Sid    = "InstallOnTheServer"

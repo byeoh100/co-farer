@@ -46,7 +46,9 @@ async function drain(tools: ActionTools, collection: string, where: Record<strin
 const MIN_AGE_MS = 15 * 60_000
 
 const cleanupMyTestTrips: ActionHandler<Env> = async ({ userId, tools, env }) => {
-  if (!testCleanupAllowed(env)) {
+  // Local server AND a test-only identity (src/server/test-auth.ts): never a
+  // real Cognito account, even when one is signed in locally.
+  if (!testCleanupAllowed(env) || !userId.startsWith('test-')) {
     return { success: false, error: 'Not available.', code: 'not_available' }
   }
   const mine = await tools.query('trips', { where: { organizerId: userId }, limit: 500 })

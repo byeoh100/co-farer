@@ -56,14 +56,20 @@ resource "aws_s3_bucket_lifecycle_configuration" "main" {
       days = 14
     }
   }
+  # Releases: uploaded tagged retire=true and untagged once live (release.sh),
+  # so the live release and releases/latest.txt never expire, however long
+  # it is between deploys. Failed and replaced releases go after 30 days.
   rule {
-    id     = "releases-90-days"
+    id     = "retired-releases-30-days"
     status = "Enabled"
     filter {
-      prefix = "releases/"
+      and {
+        prefix = "releases/"
+        tags   = { retire = "true" }
+      }
     }
     expiration {
-      days = 90
+      days = 30
     }
   }
   rule {

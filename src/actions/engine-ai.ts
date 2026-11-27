@@ -26,11 +26,14 @@ export type AiOutcome = { ok: true; options: ResearchedOption[] } | { ok: false;
 export const shouldUseFakeAi = isLocalTestAccount
 
 /**
- * Output budget for one reply. Bedrock's Converse runs without extended
- * thinking unless asked, so this covers the JSON alone (10 options is about
- * 3,000 tokens); set explicitly so Bedrock doesn't reserve the model maximum.
+ * Output budget for one reply: the same 16,000 it had on DeepSpace, where the
+ * model's thinking counted toward it. Whether Haiku 5.5 thinks by default on
+ * Bedrock Converse isn't verified yet (Bedrock access is pending), so the
+ * budget isn't cut: 10 options of JSON is about 3,000 tokens, and a larger
+ * budget costs nothing unless used (it is set so Bedrock doesn't reserve the
+ * model's maximum against the quota).
  */
-const MAX_REPLY_TOKENS = 8000
+const MAX_REPLY_TOKENS = 16000
 
 /** One research call: the searches, the prompts, and how to read the reply. */
 export interface ResearchJob {

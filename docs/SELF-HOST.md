@@ -351,3 +351,21 @@ configure-aws-credentials v6.3.0 (v6.3.1 was two days old), upload-artifact v7.0
 The first push failed at the AWS sign-in step because the trust policy
 expected GitHub's older name-only subject; CloudTrail showed the real one,
 and the role now trusts that.
+
+## Bug check before the switchover (2026-11-27)
+
+A code review of everything the migration changed (`main`…`self-host`) found
+ten issues; all fixed:
+
+| Issue | Fix |
+| --- | --- |
+| A release that failed its health check stayed marked `latest`, so a rebuilt server would install it | `release.sh` marks `latest` only after the server reports success |
+| Re-deploying an older release could prune the live one at the next restart | The installer never prunes the live release and refreshes its date first |
+| After 90 days with no deploy, S3 deleted `latest.txt` and the live release, so a rebuilt server had nothing to install | Releases are uploaded tagged `retire=true`; the live one is untagged and the one it replaced is retired. Only retired releases expire (30 days). |
+| CI gave up waiting for an install after about 100 s | It polls until a final status, for up to 6 minutes |
+| The AI reply budget was cut to 8,000 tokens on an unverified assumption | Back to 16,000 until Bedrock access lets us check |
+| Test slugs like `bob-` crashed the test sign-in | Stricter slug pattern; a malformed cookie is ignored |
+| An encoded `?` or `#` (`/_headers%3F`) could reach a hidden asset file | Refused |
+| `npm run dev` listened on every network with test sign-in on | Only this machine (`--lan` to opt in) |
+| Test cleanup worked for a real account on a local server | Also requires a `test-` identity |
+| A failed sign-in showed nothing | Lands on `/trips?signin=failed`, which says so |

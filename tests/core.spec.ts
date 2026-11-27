@@ -171,6 +171,11 @@ test('Core: a non-member cannot join a trip presence room', async ({ users }) =>
   expect(await outcome(b.page)).toBe('refused')
 })
 
+test('a failed sign-in says so on the sign-in panel', async ({ page }) => {
+  await page.goto('/trips?signin=failed')
+  await expect(page.getByTestId('signin-failed')).toHaveText('That sign-in didn’t finish. Please try again.', { timeout: 15_000 })
+})
+
 test('Core: a saved profile (name + picture) sticks and shows in trips', async ({ users }) => {
   const [a] = await users(1)
   await a.page.goto('/trips')

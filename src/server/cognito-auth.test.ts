@@ -223,7 +223,7 @@ describe('sign-in routes', () => {
       ['/auth/callback?error=access_denied', `cofarer_oauth=${oauth}`],
     ] as const) {
       const r = await req(a, path, { headers: { cookie: cookieHeader } })
-      expect(r.headers.get('Location')).toBe('/?signin=failed')
+      expect(r.headers.get('Location')).toBe('/trips?signin=failed')
       expect(cookieValue(r, SESSION_COOKIE)).toBe('')
     }
   })

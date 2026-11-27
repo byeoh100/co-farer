@@ -26,6 +26,13 @@ test.describe('API tests', () => {
     expect(res.headers()['cache-control']).toBe('no-store')
   })
 
+  test('hidden asset files stay hidden, even with an encoded ? or #', async ({ request }) => {
+    for (const path of ['/_headers', '/_headers%3F', '/_headers%23x', '/.assetsignore%3F']) {
+      const res = await request.get(path)
+      expect(await res.text(), path).not.toContain('X-Frame-Options')
+    }
+  })
+
   test('WebSocket endpoint exists', async ({ page }) => {
     // /home is a dynamic page (under src/pages/(app)/), so mounting it boots
     // the providers and auto-connects the records WebSocket. The static

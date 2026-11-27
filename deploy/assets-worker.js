@@ -93,8 +93,10 @@ export default {
     // Cloudflare's asset config files are never served; everything else is (incl. `_layout-*.js` chunks).
     // Refuse `.`/`..` path segments and backslashes (folder traversal), not dots in a
     // name: the 404 page's chunk is really called `_...all_-<hash>.js` (from [...all].tsx).
+    // `?` or `#` once decoded would be re-read as a query or fragment by the disk
+    // fetch below, so `/_headers%3F` could reach a hidden file: refuse them too.
     const segments = pathname.split('/')
-    if (segments.some((s) => s === '..' || s === '.') || pathname.includes('\\') || HIDDEN.has(pathname)) {
+    if (segments.some((s) => s === '..' || s === '.') || /[\\?#]/.test(pathname) || HIDDEN.has(pathname)) {
       return new Response('Not found', { status: 404 })
     }
     for (const path of candidates(pathname)) {

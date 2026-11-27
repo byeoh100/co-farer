@@ -22,7 +22,8 @@ import type { AppContext, Env } from '../../worker.js'
 import { appKeyPem, cookie, mintAppToken, safeReturnTo, type CognitoEnv } from './cognito-auth.js'
 
 export const TEST_COOKIE = 'cofarer_test_user'
-const SLUG = /^[a-z][a-z0-9-]{0,31}$/
+/** Lowercase words joined by single hyphens, e.g. "alice", "bob-2" (no empty pieces). */
+const SLUG = /^(?=.{1,32}$)[a-z][a-z0-9]*(-[a-z0-9]+)*$/
 
 export const testAuthEnabled = (env: Pick<Env, 'ALLOW_TEST_AUTH'>) => env.ALLOW_TEST_AUTH === 'true'
 

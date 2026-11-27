@@ -328,7 +328,7 @@ export function registerCognitoAuthRoutes(app: Hono<AppContext>): void {
     if (!cognitoEnabled(e)) return next()
     const failed = (why: string) => {
       console.error(`[auth] sign-in callback failed: ${why}`)
-      return redirect('/?signin=failed', [clearCookie(e, OAUTH_COOKIE, '/auth')])
+      return redirect('/trips?signin=failed', [clearCookie(e, OAUTH_COOKIE, '/auth')])
     }
     const pem = await appKeyPem(e)
     if (!pem) return failed('no app signing key')
