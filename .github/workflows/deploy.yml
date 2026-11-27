@@ -1,0 +1,93 @@
+# Push-to-deploy (docs/MIGRATION.md, Phase 4).
+#
+# Every push to the deploy branch: install, type check + unit tests, lint,
+# the two-user end-to-end tests on workerd, and only if all pass, build the
+# release, upload it, and install it on the server. The server rolls back by
+# itself if the new release's /healthz doesn't answer within 60 s, and this
+# run then fails.
+#
+# AWS access: OpenID Connect into the `cofarer-deploy` role (infra/deploy.tf),
+# trusted only for this repository's deploy branch, and only allowed to upload
+# releases and send the one "install release <id>" command. No AWS keys are
+# stored in GitHub.
+#
+# Deploy branch: `self-host` until Phase 5 switches the live app over, then
+# `main` (change it here and in infra/variables.tf `deploy_branches`).
+#
+# Actions are pinned to commit SHAs (tags can be moved).
+
+name: Deploy
+
+on:
+  push:
+    branches: [self-host]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-2
+  COFARER_BUCKET: cofarer-464079169769-us-east-2
+  COFARER_INSTANCE: i-04f2f650c5051296d
+  DEPLOY_ROLE: arn:aws:iam::464079169769:role/cofarer-deploy
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Type check and unit tests
+        run: npm run validate
+      - name: Lint
+        run: npm run lint
+      - name: End-to-end tests (Playwright on workerd)
+        run: |
+          npx playwright install --with-deps chromium
+          npm test
+      - name: Keep the test report if anything failed
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-results
+          path: test-results/
+          retention-days: 7
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # for the OIDC sign-in to AWS
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: cofarer-deploy-${{ github.run_id }}
+      - name: Build, upload and install the release (rolls back on failure)
+        run: infra/release.sh --install
+      - name: Check the live site
+        run: |
+          for i in $(seq 1 12); do
+            [ "$(curl -fs --max-time 5 https://co-farer.duckdns.org/healthz)" = "ok" ] && { echo "https://co-farer.duckdns.org is healthy"; exit 0; }
+            sleep 5
+          done
+          echo "the live site did not answer /healthz" >&2; exit 1
