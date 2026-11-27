@@ -19,14 +19,13 @@
 
 import { APP_NAME } from './constants'
 
-/** Injected by prerender.ts: `https://<name>.app.space` from wrangler.toml, or
- *  what `deepspace deploy` passes (staging: spacestest.com). Absent in unit
- *  tests, hence the guard. */
+/** Injected by prerender.ts (PUBLIC_ORIGIN there, or SITE_ORIGIN at build
+ *  time). Absent in unit tests, hence the guard. */
 declare const __DEEPSPACE_SITE_ORIGIN__: string | undefined
 
 export const seo = {
   title: 'Co-farer | Group trip planner',
-  description: 'Plan a group trip together: pick dates, vote on where to stay, and sort out rides, with everyone’s budget counted, shared or not.',
+  description: 'Find the days everyone’s free, vote on where to stay, and fill the cars, all on one page that updates live for the whole group.',
   /** Public origin for canonical URLs, og:url, and the sitemap — no trailing
    *  slash. Replace with the custom domain once one is attached, e.g.
    *  'https://www.example.com'. */

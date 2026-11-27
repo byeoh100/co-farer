@@ -36,7 +36,7 @@ export function testUser(slug: string): TestUser | null {
   return { id: `test-${slug}`, name, email: `${slug}@deepspace.test` }
 }
 
-function currentTestUser(req: Request): TestUser | null {
+export function currentTestUser(req: Request): TestUser | null {
   const cookieHeader = req.headers.get('cookie') ?? ''
   const slug = new RegExp(`(?:^|;\\s*)${TEST_COOKIE}=([a-z0-9-]+)`).exec(cookieHeader)?.[1]
   return slug ? testUser(slug) : null

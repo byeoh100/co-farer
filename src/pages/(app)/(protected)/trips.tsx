@@ -8,8 +8,8 @@
  * the existing createTrip action.
  */
 
-import { useMemo, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthStatus, useQuery, useUser } from 'deepspace'
 import { Tent } from 'lucide-react'
 import { Input, Label, Modal, useToast } from '@/components/ui'
@@ -146,8 +146,17 @@ export default function MyTripsPage() {
   const { userId } = useAuthStatus()
   const { user } = useUser()
   const { views, next, todos, status, today } = useHome(userId ?? '')
-  const [creating, setCreating] = useState(false)
-  const [joining, setJoining] = useState(false)
+  // The landing page links here with ?new=1 (Plan a trip) or ?join=1 (I have an invite).
+  const [params, setParams] = useSearchParams()
+  const [creating, setCreating] = useState(() => params.get('new') === '1')
+  const [joining, setJoining] = useState(() => params.get('join') === '1')
+  useEffect(() => {
+    if (!params.has('new') && !params.has('join')) return
+    const next = new URLSearchParams(params)
+    next.delete('new')
+    next.delete('join')
+    setParams(next, { replace: true })
+  }, [params, setParams])
   const [filter, setFilter] = useState<'upcoming' | 'past'>('upcoming')
   const first = (user?.name ?? '').trim().split(/\s+/)[0]
   const active = views.filter((v) => !v.past).length

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Co-farer landing page</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+body{margin:0;background:#111111}
+a{color:#F2EFEA;text-decoration:none}a:hover{color:#FFFFFF}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #111111; color: #F2EFEA; font-family: Inter, system-ui, sans-serif; font-size: 14px">
+
+<header style="max-width: 1280px; margin: 0 auto; padding: 20px 32px; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 16px">
+<a href="#" style="display: flex; align-items: center; gap: 10px; font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 700; letter-spacing: 0.5px">
+<svg width="30" height="30" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="{{accent}}"></rect><path d="M44 19.5 A17 17 0 1 0 44 44.5" fill="none" stroke="#FFFFFF" stroke-linecap="round" style="stroke-width: 9"></path><circle cx="47" cy="32" r="6" fill="#9DB4FF"></circle></svg>CO-FARER</a>
+<div style="display: flex; gap: 10px">
+<a href="#" style="height: 40px; padding: 0 18px; border-radius: 999px; border: 1px solid #3A3A3A; display: flex; align-items: center; font-size: 14px">Sign in</a>
+<a href="#" style="height: 40px; padding: 0 18px; border-radius: 999px; background: {{accent}}; color: #FFFFFF; display: flex; align-items: center; font-size: 14px; font-weight: 600">Plan a trip</a>
+</div>
+</header>
+
+<section style="max-width: 1280px; margin: 0 auto; padding: 0 32px; box-sizing: border-box">
+<div style="position: relative; height: 560px; border-radius: 24px; overflow: hidden">
+<dc-import name="Scene" kind="lake" hint-size="100%,560px"></dc-import>
+<div style="position: absolute; inset: 0; background: linear-gradient(to right, rgba(17,17,17,0.92) 0%, rgba(17,17,17,0.6) 45%, rgba(17,17,17,0) 75%)"></div>
+<div style="position: absolute; left: 48px; top: 0; bottom: 0; max-width: 620px; display: flex; flex-direction: column; justify-content: center; gap: 22px">
+<p style="margin: 0; color: #A39E97; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase">Group trip planner</p>
+<h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 96px; line-height: 0.88; letter-spacing: -1px; text-transform: uppercase">Plan the trip,<br>not the group<br>chat<span style="color: {{ink}}">.</span></h1>
+<p style="margin: 0; max-width: 460px; color: #D6D2CC; font-size: 17px; line-height: 1.5">Find the days everyone's free, vote on where to stay, and fill the cars, all on one page that updates live for the whole group.</p>
+<div style="display: flex; gap: 10px; flex-wrap: wrap">
+<a href="#" style="height: 50px; padding: 0 24px; border-radius: 999px; background: {{accent}}; color: #FFFFFF; display: flex; align-items: center; font-size: 15px; font-weight: 600">Plan a trip, it's free</a>
+<a href="#" style="height: 50px; padding: 0 22px; border-radius: 999px; background: rgba(17,17,17,0.7); border: 1px solid #3A3A3A; display: flex; align-items: center; font-size: 15px">I have an invite</a>
+</div>
+</div>
+<div style="position: absolute; right: 36px; bottom: 36px; width: 330px; background: rgba(27,27,27,0.94); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 10px" aria-hidden="true">
+<div style="display: flex; justify-content: space-between; align-items: center"><span style="font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; text-transform: uppercase">Lakeview Yurt</span><span style="padding: 3px 10px; border-radius: 999px; background: {{accent}}; color: #FFF; font-size: 12px; font-weight: 600">Leading</span></div>
+<span style="color: #A39E97; font-size: 13px">$48 per person · fits everyone's budget</span>
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px"><sc-for list="{{slots}}" as="s" hint-placeholder-count="6"><span style="height: 8px; border-radius: 4px; background: {{s}}"></span></sc-for></div>
+</div>
+</div>
+</section>
+
+<section style="max-width: 1280px; margin: 0 auto; padding: 56px 32px 0; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+<h2 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-size: 44px; font-weight: 700; text-transform: uppercase">How it works</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px">
+
+<article style="background: #1B1B1B; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 40px; font-weight: 700; color: {{ink}}; line-height: 1">01</span>
+<h3 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 700; text-transform: uppercase">Pick the dates</h3>
+<p style="margin: 0; color: #A39E97; line-height: 1.5">Everyone marks when they're free. The overlap shows the best days, and you lock them in.</p>
+<div style="display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; align-items: end; height: 70px; margin-top: auto" aria-hidden="true">
+<sc-for list="{{bars}}" as="b" hint-placeholder-count="10"><div style="height: 70px; display: flex; align-items: flex-end; background: #232323; border-radius: 6px; overflow: hidden"><span style="width: 100%; height: {{b.h}}; background: {{b.c}}; border-radius: 6px"></span></div></sc-for>
+</div>
+</article>
+
+<article style="background: #1B1B1B; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 40px; font-weight: 700; color: {{ink}}; line-height: 1">02</span>
+<h3 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 700; text-transform: uppercase">Vote on where to stay</h3>
+<p style="margin: 0; color: #A39E97; line-height: 1.5">Suggest places, get them researched, and vote live. Options over someone's budget get flagged.</p>
+<div style="display: flex; flex-direction: column; gap: 8px; margin-top: auto" aria-hidden="true">
+<div style="display: flex; gap: 10px; align-items: center; background: #232323; border-radius: 12px; padding: 8px"><div style="width: 54px; height: 40px; border-radius: 8px; overflow: hidden; flex-shrink: 0"><dc-import name="Scene" kind="yurt" hint-size="54px,40px"></dc-import></div><div style="flex: 1; display: flex; flex-direction: column; gap: 5px"><span style="font-weight: 600; font-size: 13px">Lakeview Yurt</span><div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px"><sc-for list="{{slots}}" as="s" hint-placeholder-count="6"><span style="height: 5px; border-radius: 3px; background: {{s}}"></span></sc-for></div></div></div>
+<div style="display: flex; gap: 10px; align-items: center; background: #232323; border-radius: 12px; padding: 8px"><div style="width: 54px; height: 40px; border-radius: 8px; overflow: hidden; flex-shrink: 0"><dc-import name="Scene" kind="cabin" hint-size="54px,40px"></dc-import></div><div style="flex: 1; display: flex; flex-direction: column; gap: 3px"><span style="font-weight: 600; font-size: 13px">Lakeside cabin</span><span style="color: #F4B183; font-size: 12px">▲ Over budget for 2</span></div></div>
+</div>
+</article>
+
+<article style="background: #1B1B1B; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 40px; font-weight: 700; color: {{ink}}; line-height: 1">03</span>
+<h3 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 700; text-transform: uppercase">Keep it in budget</h3>
+<p style="margin: 0; color: #A39E97; line-height: 1.5">Each person's budget shapes the plan. Share it with the group or keep it to yourself.</p>
+<div style="display: flex; flex-direction: column; gap: 6px; margin-top: auto" aria-hidden="true">
+<div style="display: flex; justify-content: space-between; font-size: 13px"><span>Housing</span><span style="color: #A39E97">$48 of $60</span></div>
+<div style="height: 8px; background: #2A2A2A; border-radius: 4px"><div style="width: 80%; height: 8px; background: {{bright}}; border-radius: 4px"></div></div>
+<div style="display: flex; justify-content: space-between; font-size: 13px; margin-top: 4px"><span>Gas</span><span style="color: #A39E97">$15 of $30</span></div>
+<div style="height: 8px; background: #2A2A2A; border-radius: 4px"><div style="width: 50%; height: 8px; background: {{bright}}; border-radius: 4px"></div></div>
+</div>
+</article>
+</div>
+</section>
+
+<section style="max-width: 1280px; margin: 0 auto; padding: 56px 32px; box-sizing: border-box">
+<div style="background: #1B1B1B; border-radius: 24px; padding: 36px 40px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-size: 52px; font-weight: 700; text-transform: uppercase; line-height: 0.95">Got a trip in mind<span style="color: {{ink}}">?</span></h2>
+<p style="margin: 0; color: #A39E97; font-size: 15px">Start it in a minute, then send the link to your group.</p>
+</div>
+<a href="#" style="height: 52px; padding: 0 26px; border-radius: 999px; background: {{accent}}; color: #FFFFFF; display: flex; align-items: center; font-size: 15px; font-weight: 600">Plan a trip</a>
+</div>
+</section>
+
+<footer style="max-width: 1280px; margin: 0 auto; padding: 0 32px 32px; box-sizing: border-box; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; color: #6E6A64; font-size: 13px; border-top: 1px solid #262626; padding-top: 20px">
+<span>© 2027 Co-farer</span>
+<span style="display: flex; gap: 18px"><a href="#" style="color: #A39E97">Terms</a><a href="#" style="color: #A39E97">Privacy</a><a href="#" style="color: #A39E97">Sign in</a></span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","options":["#2A4AA8","#1A2F6E","#3A5FCD","#5277E0"],"default":"#2A4AA8"},"$preview":{"width":1280,"height":1360}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const accent = this.props.accent ?? '#2A4AA8';
+    const inks = { '#1A2F6E': '#8EA6F0', '#2A4AA8': '#9DB4FF', '#3A5FCD': '#A9BFFF', '#5277E0': '#B7CAFF' };
+    const ink = inks[accent] || '#9DB4FF';
+    const bright = accent === '#1A2F6E' ? '#3A5FCD' : accent;
+    const slots = ['#F26B3A', '#E9C46A', '#7FB7BE', '#B8A1D9', '#3A3A3A', '#3A3A3A'];
+    const free = [2, 3, 4, 5, 6, 6, 6, 4, 3, 2];
+    const bars = free.map((n, i) => ({ h: Math.round((n / 6) * 100) + '%', c: i >= 4 && i <= 6 ? bright : '#4A4540' }));
+    return { accent, ink, bright, slots, bars };
+  }
+}
+</script>
+</body>
+</html>

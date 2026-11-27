@@ -27,6 +27,7 @@ import { registerActionRoutes } from './src/server/action-routes.js'
 import { registerDebugRoutes, registerHealthRoute, registerStaticRoutes, resolveAuth } from './src/server/http-routes.js'
 import { registerRealtimeRoutes } from './src/server/realtime-routes.js'
 import { registerTestAuthRoutes } from './src/server/test-auth.js'
+import { registerLandingRedirect } from './src/server/landing.js'
 import type { AiEnv } from './src/lib/ai-provider.js'
 import { registerCognitoAuthRoutes, type CognitoEnv } from './src/server/cognito-auth.js'
 
@@ -120,6 +121,8 @@ registerDebugRoutes(app)
 registerHealthRoute(app)
 registerRealtimeRoutes(app)
 registerActionRoutes(app, resolveAuth)
+// Signed in: `/` → `/trips` (co-farer-landing/LANDING-SPEC.md).
+registerLandingRedirect(app)
 registerStaticRoutes(app)
 
 // Hono registers ONE error handler (last onError wins), and its default is

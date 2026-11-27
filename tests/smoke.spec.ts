@@ -37,6 +37,18 @@ test.describe('Smoke tests', () => {
     expect(await page.locator('head link[rel="canonical"]').count()).toBe(1)
   })
 
+  test('landing: the self-hosted address in the canonical and og:url, the new title, favicon and theme colour', async ({ request }) => {
+    // Read the served HTML itself (what search engines and link previews see).
+    const html = await (await request.get('/')).text()
+    expect(html).toContain('<link rel="canonical" href="https://co-farer.duckdns.org/"')
+    expect(html).toContain('<meta property="og:url" content="https://co-farer.duckdns.org/"')
+    expect(html).toContain('<title>Co-farer | Group trip planner</title>')
+    expect(html).toContain('href="/favicon.svg"')
+    expect(html).toContain('<meta name="theme-color" content="#111111"')
+    expect(html).not.toContain('app.space')
+    expect(html).toContain('Plan the trip')
+  })
+
   test('static contract: landing fires no auth request, opens no websocket', async ({ page }) => {
     const offenders: string[] = []
     page.on('request', (req) => {

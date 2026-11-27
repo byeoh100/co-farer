@@ -49,16 +49,15 @@ interface Entry {
 }
 
 /**
- * Public origin every canonical URL and the sitemap hang off. `deepspace
- * deploy` sets DEEPSPACE_SITE_ORIGIN for the build it runs (staging resolves
- * to spacestest.com); a plain `vite build` derives it from wrangler.toml's
- * top-level `name`. src/seo.ts reads it as `__DEEPSPACE_SITE_ORIGIN__` and is
- * the place to override it once a custom domain is attached.
+ * Public origin every canonical URL, og:url and the sitemap hang off. The one
+ * place it's set: SITE_ORIGIN for a build that needs another (e.g. a future
+ * custom domain), else the self-hosted app's address. src/seo.ts reads it as
+ * `__DEEPSPACE_SITE_ORIGIN__`. (Matches APP_URL on the server, infra/variables.tf `domain`.)
  */
+const PUBLIC_ORIGIN = 'https://co-farer.duckdns.org'
+
 function siteOrigin(): string {
-  if (process.env.DEEPSPACE_SITE_ORIGIN) return process.env.DEEPSPACE_SITE_ORIGIN
-  const name = /^name\s*=\s*"([^"]+)"/m.exec(readFileSync(join(appDir, 'wrangler.toml'), 'utf8'))?.[1]
-  return name ? `https://${name}.app.space` : 'http://localhost'
+  return (process.env.SITE_ORIGIN || PUBLIC_ORIGIN).replace(/\/$/, '')
 }
 
 export function prerender(): Plugin {

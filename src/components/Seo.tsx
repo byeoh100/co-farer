@@ -9,7 +9,7 @@ import type { ReactElement } from 'react'
  * landing page's bundle, and the static front door should stay light.
  *
  * `origin` and `path` together make the canonical URL
- * (`https://my-app.app.space/about`); a root-relative `ogImage` is resolved
+ * (`https://co-farer.duckdns.org/about`); a root-relative `ogImage` is resolved
  * against the same origin.
  */
 export interface SeoProps {

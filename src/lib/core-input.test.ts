@@ -94,7 +94,7 @@ describe('profile pictures', () => {
     }
   })
   it('strip the origin from an upload URL', () => {
-    expect(toStoredImagePath('https://co-farer.app.space/api/files/app/k.png?scope=app')).toBe('/api/files/app/k.png?scope=app')
+    expect(toStoredImagePath('https://co-farer.duckdns.org/api/files/app/k.png?scope=app')).toBe('/api/files/app/k.png?scope=app')
   })
   it('default avatar uses the first letter of the first name', () => {
     expect(avatarInitial('maya rodriguez')).toBe('M')

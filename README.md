@@ -2,7 +2,7 @@
 
 A group trip planner where friends pick dates, choose where to stay, sort out rides, and shortlist activities and food together, on one trip page that updates live for everyone.
 
-**Live:** https://co-farer.app.space · Built on [DeepSpace](https://deep.space)
+**Live:** https://co-farer.duckdns.org (self-hosted on AWS; the original DeepSpace version runs at co-farer.app.space until the switchover)
 
 ## What it does
 
