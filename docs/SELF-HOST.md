@@ -307,3 +307,47 @@ Also checked: sign-in on the server reaches Cognito (so the app reads its
 signing key from Parameter Store through the role), the test-only sign-in and
 DeepSpace routes are 404s, logs arrive in CloudWatch, and Terraform reports no
 drift.
+
+## Phase 4: push-to-deploy (2026-11-27)
+
+Every push to **`self-host`** (it becomes `main` in Phase 5) runs
+`.github/workflows/deploy.yml` on GitHub Actions:
+
+1. `npm ci`, `npm run validate` (types + unit tests), `npm run lint`, and the
+   24 end-to-end tests on workerd. Any failure stops the deploy.
+2. `infra/release.sh --install`: builds the release (with the Linux arm64
+   workerd), uploads it to `s3://…/releases/<git sha>/`, and asks the server
+   to install it through the `cofarer-install-release` SSM document.
+3. The server switches to it and waits for **`/healthz`** to say `ok` (the
+   data room answered a read). If it doesn't within 60 s, it puts the
+   previous release back and the run fails.
+4. The workflow checks `https://co-farer.duckdns.org/healthz` from outside.
+
+Pushes that only touch `*.md` or `docs/` don't deploy.
+
+**AWS access without keys.** GitHub signs in with OpenID Connect as
+`cofarer-deploy`, trusted only for `repo:byeoh100@95153447/co-farer@1466362137:ref:refs/heads/self-host`.
+GitHub's subject now carries the account and repository IDs, so a renamed or
+re-created repository can't inherit the trust. The role can upload to
+`releases/` and send the one install document to the one server, and nothing
+else (checked with the IAM policy simulator: no arbitrary shell commands, no
+backups, no secrets, no sessions, no terminate, no PassRole). The install
+document only runs `/opt/cofarer/bin/install-release <id>`, with the id
+limited to `^[0-9a-zA-Z._-]{1,64}$`.
+
+Actions are pinned to commit SHAs: checkout v7.0.1, setup-node v7.1.0,
+configure-aws-credentials v6.3.0 (v6.3.1 was two days old), upload-artifact v7.0.2.
+
+**Terraform state** moved to `s3://cofarer-tfstate-464079169769/cofarer/infra.tfstate`
+(versioned, private, encrypted, S3 locking; old versions kept 90 days).
+
+### "Done when" checks
+
+| Check | Result |
+| --- | --- |
+| A small visible change pushed to the deploy branch appears live within about 5 minutes | Pass: a landing page footer line, pushed 08:05:48 UTC, live 08:10:20 UTC (4 min 32 s; tests 1 min 18 s, deploy 51 s) |
+| A deliberately broken release rolls back by itself | Pass: `release.sh --install --broken-for-test` (a worker that throws on load) through the same SSM document: "did not answer within 60 s, rolled back to 5992908af2f6", the run fails, and the site came back on its own. Cost: about 55 s of 502s while it was tried. |
+
+The first push failed at the AWS sign-in step because the trust policy
+expected GitHub's older name-only subject; CloudTrail showed the real one,
+and the role now trusts that.

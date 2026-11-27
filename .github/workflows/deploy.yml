@@ -21,6 +21,8 @@ name: Deploy
 on:
   push:
     branches: [self-host]
+    # Docs can't change the app: no deploy for them.
+    paths-ignore: ['**.md', 'docs/**']
   workflow_dispatch:
 
 permissions:
