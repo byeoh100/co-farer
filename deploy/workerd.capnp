@@ -84,8 +84,7 @@ const appWorker :Workerd.Worker = (
 
     # Local only.
     (name = "ALLOW_DEBUG_ROUTES", fromEnvironment = "ALLOW_DEBUG_ROUTES"),
-    (name = "LOCAL_STUB_AUTH", fromEnvironment = "LOCAL_STUB_AUTH"),
-    (name = "STUB_AUTH_PRIVATE_KEY", fromEnvironment = "STUB_AUTH_PRIVATE_KEY"),
+    (name = "ALLOW_TEST_AUTH", fromEnvironment = "ALLOW_TEST_AUTH"),
   ],
 
   durableObjectNamespaces = [

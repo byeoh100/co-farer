@@ -5,7 +5,7 @@
  *   npm run build && npm run workerd      → http://localhost:8080
  *
  * - Makes a local ES256 key pair once, in .workerd-data/stub-auth.json
- *   (gitignored), for the Phase 1 stand-in sign-in.
+ *   (gitignored): the app's signing key locally, for Cognito and test sign-ins.
  * - Keeps Durable Object data in .workerd-data/do across restarts.
  * - AI research (Phase 2a): the @deepspace.test stand-in users get the free
  *   fake AI, as before. For real Bedrock and Brave calls, run with `--aws`:
@@ -16,15 +16,23 @@
  */
 
 import { generateKeyPairSync } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { execFileSync, spawn } from 'node:child_process'
 import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
 const dataDir = resolve(root, '.workerd-data')
-const doDir = resolve(dataDir, 'do')
 const keyFile = resolve(dataDir, 'stub-auth.json')
+
+// Options (Playwright uses all three): --port=N (default 8080),
+// --data=<folder under .workerd-data> (default "do"), --fresh (empty it first).
+const userArgs = process.argv.slice(2)
+const opt = (name) => userArgs.find((a) => a.startsWith(`--${name}=`))?.split('=')[1]
+const port = Number(opt('port') ?? 8080)
+const doDir = resolve(dataDir, opt('data') ?? 'do')
+if (!doDir.startsWith(dataDir + '/')) throw new Error('--data must be a folder under .workerd-data')
+if (userArgs.includes('--fresh')) rmSync(doDir, { recursive: true, force: true })
 mkdirSync(doDir, { recursive: true })
 
 if (!existsSync(resolve(root, 'dist/co_farer/index.js'))) {
@@ -56,20 +64,19 @@ const env = {
   AUTH_JWT_ISSUER: 'cofarer-local-stub',
   OWNER_USER_ID: 'stub-owner',
   ALLOW_DEBUG_ROUTES: 'true',
-  LOCAL_STUB_AUTH: 'true',
-  STUB_AUTH_PRIVATE_KEY: keys.privatePem,
-  // Phase 2b: real Cognito sign-in alongside the stub (public identifiers, not
+  // Test-only sign-in (src/server/test-auth.ts): local runs only, never the server.
+  ALLOW_TEST_AUTH: 'true',
+  // Phase 2b: real Cognito sign-in alongside test sign-in (public identifiers, not
   // secrets; also in Parameter Store under /cofarer/cognito-*). Locally the app
   // signs its own tokens with the local key above, so no AWS access is needed
   // to sign in. Set COGNITO_CLIENT_ID= (empty) to turn Cognito off.
   COGNITO_DOMAIN: process.env.COGNITO_DOMAIN ?? 'https://co-farer.auth.us-east-2.amazoncognito.com',
   COGNITO_CLIENT_ID: process.env.COGNITO_CLIENT_ID ?? '3ofnp5fam86b8s3j10barba1dl',
   COGNITO_USER_POOL_ID: process.env.COGNITO_USER_POOL_ID ?? 'us-east-2_DHqzYR5y0',
-  APP_URL: 'http://localhost:8080',
+  APP_URL: `http://localhost:${port}`,
   APP_JWT_PRIVATE_KEY: keys.privatePem,
 }
 
-const userArgs = process.argv.slice(2)
 const useAws = userArgs.includes('--aws')
 env.AWS_REGION ||= 'us-east-2'
 env.BEDROCK_MODEL_ID ||= ''
@@ -99,9 +106,10 @@ const args = [
   '--experimental',
   `--directory-path=assets-disk=${resolve(root, 'dist/client')}`,
   `--directory-path=do-storage=${doDir}`,
-  ...userArgs.filter((a) => a !== '--aws'),
+  `--socket-addr=http=*:${port}`,
+  ...userArgs.filter((a) => a !== '--aws' && a !== '--fresh' && !a.startsWith('--port=') && !a.startsWith('--data=')),
 ]
-console.log('Co-farer on workerd → http://localhost:8080   (Sign in → Cognito; test users: http://localhost:8080/api/auth/stub-login)')
+console.log(`Co-farer on workerd → http://localhost:${port}   (Sign in → Cognito; test users: http://localhost:${port}/api/auth/test-login)`)
 const child = spawn(bin, args, { cwd: root, env, stdio: 'inherit' })
 child.on('exit', (code, signal) => process.exit(code ?? (signal ? 1 : 0)))
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => child.kill(sig))

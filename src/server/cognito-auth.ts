@@ -32,7 +32,6 @@ import type { Hono } from 'hono'
 import { SignJWT, createRemoteJWKSet, importPKCS8, jwtVerify, type JWTVerifyGetKey } from 'jose'
 import type { AppContext, Env } from '../../worker.js'
 import { getParameter, type AwsEnv } from '../lib/aws'
-import { stubAuthEnabled } from './stub-auth.js'
 
 export interface CognitoEnv extends AwsEnv {
   /** e.g. https://co-farer.auth.us-east-2.amazoncognito.com */
@@ -394,7 +393,7 @@ export function registerCognitoAuthRoutes(app: Hono<AppContext>): void {
     const pem = await appKeyPem(e)
     const s = pem ? await unseal<Session>(pem, readCookie(c.req.raw, SESSION_COOKIE)) : null
     if (s && typeof s.rt === 'string') await revoke(e, s.rt)
-    return [clearCookie(e, SESSION_COOKIE), clearCookie(e, 'cofarer_stub_user')]
+    return [clearCookie(e, SESSION_COOKIE)]
   }
 
   app.post('/api/auth/sign-out', async (c, next) => {
@@ -405,7 +404,7 @@ export function registerCognitoAuthRoutes(app: Hono<AppContext>): void {
   // Full sign-out: clears the app session, then Cognito's own, so the next sign-in can pick another account.
   app.get('/auth/logout', async (c, next) => {
     const e = env(c)
-    if (!cognitoEnabled(e)) return stubAuthEnabled(c.env) ? redirect('/', [clearCookie(e, 'cofarer_stub_user')]) : next()
+    if (!cognitoEnabled(e)) return next()
     const cookies = await endSession(c)
     const u = new URL('/logout', e.COGNITO_DOMAIN)
     u.searchParams.set('client_id', e.COGNITO_CLIENT_ID!)

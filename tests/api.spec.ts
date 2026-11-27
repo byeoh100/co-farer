@@ -1,9 +1,22 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('API tests', () => {
-  test('auth proxy forwards to auth worker', async ({ request }) => {
-    const res = await request.get('/api/auth/ok')
-    expect(res.ok()).toBeTruthy()
+  test('signed out: no session, no token, and unknown API paths are a JSON 404', async ({ request }) => {
+    expect(await (await request.get('/api/auth/get-session')).json()).toBeNull()
+    expect((await request.post('/api/auth/token')).status()).toBe(401)
+    // DeepSpace's routes are gone (Phase 2d–2e).
+    for (const path of ['/api/integrations', '/api/files/x', '/api/auth/sign-in/email']) {
+      const res = await request.get(path)
+      expect(res.status(), path).toBe(404)
+      expect(await res.json()).toEqual({ error: 'not_found' })
+    }
+  })
+
+  test('an action without a token, or with a forged one, is refused', async ({ request }) => {
+    expect((await request.post('/api/actions/createTrip', { data: { name: 'x', destination: 'y' } })).status()).toBe(401)
+    const forged = 'eyJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJ0ZXN0LWFsaWNlIn0.AAAA'
+    const res = await request.post('/api/actions/createTrip', { data: { name: 'x', destination: 'y' }, headers: { Authorization: `Bearer ${forged}` } })
+    expect(res.status()).toBe(401)
   })
 
   test('WebSocket endpoint exists', async ({ page }) => {

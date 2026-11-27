@@ -24,9 +24,9 @@ import { tasks as cronTasks, runTask as runCronTask } from './src/cron.js'
 import { runJob } from './src/jobs.js'
 import { schemas } from './src/schemas.js'
 import { registerActionRoutes } from './src/server/action-routes.js'
-import { registerAuthRoutes, registerStaticRoutes, resolveAuth } from './src/server/http-routes.js'
+import { registerDebugRoutes, registerStaticRoutes, resolveAuth } from './src/server/http-routes.js'
 import { registerRealtimeRoutes } from './src/server/realtime-routes.js'
-import { registerStubAuthRoutes } from './src/server/stub-auth.js'
+import { registerTestAuthRoutes } from './src/server/test-auth.js'
 import type { AiEnv } from './src/lib/ai-provider.js'
 import { registerCognitoAuthRoutes, type CognitoEnv } from './src/server/cognito-auth.js'
 
@@ -84,12 +84,6 @@ export interface Env extends DOBindings<typeof __DO_MANIFEST__>, AiEnv, Omit<Cog
   ASSETS: Fetcher
   AUTH_JWT_PUBLIC_KEY: string
   AUTH_JWT_ISSUER: string
-  /**
-   * DeepSpace's auth server. Only the `deepspace dev`/`test` run still uses it
-   * (the e2e tests sign in through it until Phase 2e); unused on the server.
-   */
-  AUTH_WORKER_URL?: string
-  /** Comma-separated exact Expo/native callback URIs (for example, myapp://auth/callback). */
   NATIVE_AUTH_REDIRECT_URIS?: string
   APP_NAME: string
   /** Immutable record-scope and platform identity. */
@@ -97,13 +91,11 @@ export interface Env extends DOBindings<typeof __DO_MANIFEST__>, AiEnv, Omit<Cog
   OWNER_USER_ID: string
   /**
    * Enables /api/debug/* only when exactly "true". The route still requires
-   * an authenticated app owner/admin. deepspace dev/test set it locally.
+   * an authenticated app owner/admin. `npm run workerd` sets it locally.
    */
   ALLOW_DEBUG_ROUTES?: string
-  /** Phase 1 self-host only (src/server/stub-auth.ts): exactly "true" turns on the stand-in sign-in. */
-  LOCAL_STUB_AUTH?: string
-  /** Phase 1 self-host only: the stand-in's ES256 private key (PKCS#8 PEM). Never set on a server. */
-  STUB_AUTH_PRIVATE_KEY?: string
+  /** Exactly "true" turns on the test-only sign-in (src/server/test-auth.ts). Local and Playwright runs only; never on the server. */
+  ALLOW_TEST_AUTH?: string
 }
 
 export type AppContext = { Bindings: Env }
@@ -119,12 +111,12 @@ app.use('*', async (c, next) => {
 })
 
 // Registration order is part of the worker contract: sign-in routes first
-// (stub, then Cognito, then DeepSpace's for the e2e run), static last.
-// Phase 1 (docs/MIGRATION.md): local stand-in sign-in, inert unless LOCAL_STUB_AUTH=true.
-registerStubAuthRoutes(app)
-// Phase 2b: Cognito sign-in. Inert unless COGNITO_CLIENT_ID is set.
+// (test-only, then Cognito), static last.
+// Test-only sign-in (Phase 2e), inert unless ALLOW_TEST_AUTH=true: never on the server.
+registerTestAuthRoutes(app)
+// Cognito sign-in (Phase 2b). Inert unless COGNITO_CLIENT_ID is set.
 registerCognitoAuthRoutes(app)
-registerAuthRoutes(app)
+registerDebugRoutes(app)
 registerRealtimeRoutes(app)
 registerActionRoutes(app, resolveAuth)
 registerStaticRoutes(app)

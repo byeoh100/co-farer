@@ -91,7 +91,10 @@ export default {
       return new Response('Not found', { status: 404 })
     }
     // Cloudflare's asset config files are never served; everything else is (incl. `_layout-*.js` chunks).
-    if (pathname.includes('..') || HIDDEN.has(pathname)) {
+    // Refuse `.`/`..` path segments and backslashes (folder traversal), not dots in a
+    // name: the 404 page's chunk is really called `_...all_-<hash>.js` (from [...all].tsx).
+    const segments = pathname.split('/')
+    if (segments.some((s) => s === '..' || s === '.') || pathname.includes('\\') || HIDDEN.has(pathname)) {
       return new Response('Not found', { status: 404 })
     }
     for (const path of candidates(pathname)) {

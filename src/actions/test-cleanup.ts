@@ -8,7 +8,7 @@
  * team read rule exceeds SQLite's variable limit; PLAN.md §2).
  *
  * Refused unless the server is local: ALLOW_DEBUG_ROUTES is exactly "true",
- * which only `deepspace dev`/`test` and `npm run workerd` set, never the
+ * which only `npm run workerd` and the Playwright run set, never the
  * server (docs/MIGRATION.md, Phase 2d: a local environment variable, no
  * longer DeepSpace test accounts). Even then it only touches the caller's own
  * trips, and only ones older than 15 minutes.

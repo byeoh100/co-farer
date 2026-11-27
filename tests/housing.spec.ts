@@ -16,7 +16,7 @@
  */
 
 import type { Page } from '@playwright/test'
-import { test, expect, loadAllTestAccounts } from 'deepspace/testing'
+import { test, expect, loadAllTestAccounts } from './helpers/fixtures'
 import { cleanupTestTrips } from './helpers/cleanup'
 
 test.skip(loadAllTestAccounts().length < 3, 'Needs 3 test accounts (alice/bob/carol-cofarer@deepspace.test).')

@@ -13,7 +13,7 @@
  */
 
 import type { Page } from '@playwright/test'
-import { test, expect, loadAllTestAccounts } from 'deepspace/testing'
+import { test, expect, loadAllTestAccounts } from './helpers/fixtures'
 import { cleanupTestTrips } from './helpers/cleanup'
 
 test.skip(loadAllTestAccounts().length < 2, 'Needs 2 test accounts (see tests/collab.spec.ts).')

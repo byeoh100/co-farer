@@ -227,12 +227,45 @@ Gone from the worker, `deploy/workerd.capnp` and `scripts/workerd-run.mjs`:
 | `AppYjsRoom`, `AppCanvasRoom` (`YJS_ROOMS`, `CANVAS_ROOMS`, `/ws/yjs`, `/ws/canvas`) | Collaborative-document rooms | Never used. `wrangler.toml` has a `v2` migration deleting them, for the local `deepspace dev` run only (this branch is never deployed to DeepSpace). Old local workerd folders for them are simply ignored. |
 | `/api-status` page and its two starter tests; the picture-cropper e2e test | Starter debug page; picture upload | Features removed |
 
-Still there until 2e: DeepSpace's `/api/auth/*` proxy (`AUTH_WORKER_URL`), which
-only the `deepspace dev`/`test` run uses, so the e2e tests can sign in. It
-answers only when `AUTH_WORKER_URL` is set and Cognito isn't configured, so
-it is inert under `npm run workerd` and on the server.
+(DeepSpace's `/api/auth/*` proxy stayed until 2e, for the old e2e run; 2e removed it.)
 
 `cleanupMyTestTrips` is now gated on a local environment variable
 (`ALLOW_DEBUG_ROUTES === "true"`, never set on the server) instead of
 DeepSpace test-account emails; it still touches only the caller's own trips
 older than 15 minutes.
+
+## Phase 2e: end-to-end tests on Playwright + workerd (2026-11-26)
+
+`npm test` runs the two-user tests with plain Playwright against Co-farer on
+workerd, with no DeepSpace servers. `tests/playwright.config.ts` builds the app
+and starts its own workerd on port 8791 with an empty data folder
+(`.workerd-data/e2e`) every run, so it never touches a dev server on 8080.
+
+**Test-only sign-in** (`src/server/test-auth.ts`, replacing the Phase 1 stub):
+`/api/auth/test-login?user=<slug>` signs in a fixed test identity
+(`test-<slug>`, `<slug>@deepspace.test`, so research uses the free stand-in),
+with tokens signed by the same key as Cognito sign-ins. It is on only when
+`ALLOW_TEST_AUTH` is exactly `"true"`: `npm run workerd` and Playwright set
+it, the server never does. `src/server/test-auth.test.ts` proves it's refused
+(a plain 404, no cookie, no token) when the variable is unset, empty, `false`,
+`TRUE`, `1` or `yes`.
+
+`tests/helpers/fixtures.ts` gives specs the same `users(n)` fixture they had
+from `deepspace/testing` (Alice, Bob, Carol, Dave, each in their own browser).
+
+Removed: DeepSpace's `/api/auth/*` proxy and `AUTH_WORKER_URL` (any other
+`/api/auth/*` path is a JSON 404), `LOCAL_STUB_AUTH`/`STUB_AUTH_PRIVATE_KEY`,
+and the `deepspace` dev/test/deploy npm scripts (`npm run deploy` would have
+pushed this branch to the live DeepSpace app). `npm run dev` now builds and
+runs on workerd.
+
+Found and fixed: the workerd asset worker refused any path containing `..`,
+which also refused the 404 page's real chunk, `_...all_-<hash>.js` (from
+`[...all].tsx`), so unknown pages showed "Something went wrong" under workerd.
+It now refuses only `.`/`..` path segments and backslashes; traversal attempts
+still get the app shell or a 404, never a file outside `dist/client`.
+
+Coverage: 24 e2e tests, all passing (17 s). That is the 26 DeepSpace-era
+flows minus the three for features removed in 2d (API-status page ×2, picture
+cropper) and the DeepSpace auth-proxy check, plus two new API checks
+(signed-out refusals; a forged token is refused).

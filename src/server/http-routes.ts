@@ -1,16 +1,12 @@
 /**
- * HTTP routes: sign-in plumbing, the local debug proxy, and the static/SPA
- * fallback. Self-hosted (docs/MIGRATION.md, Phase 2d): the DeepSpace
- * integrations, file and `/_deepspace` proxies and native-app sign-in are gone.
- *
- * What remains of DeepSpace here is its `/api/auth/*` proxy, used only by the
- * `deepspace dev`/`test` run that the e2e tests still sign in through. It
- * answers only when AUTH_WORKER_URL is set and Cognito isn't configured
- * (src/server/cognito-auth.ts answers first), and Phase 2e removes it.
+ * HTTP routes: bearer-token auth for the API, the local debug proxy, and the
+ * static/SPA fallback. Self-hosted (docs/MIGRATION.md, Phases 2d–2e): no
+ * DeepSpace proxies remain. Sign-in lives in src/server/cognito-auth.ts (and
+ * src/server/test-auth.ts for local tests); any other /api/auth/* path 404s.
  */
 
 import type { Hono } from 'hono'
-import { authWorkerFetch, isPlatformReservedPath, resolveAppRole, SESSION_COOKIE, verifyJwt } from 'deepspace/worker'
+import { isPlatformReservedPath, resolveAppRole, verifyJwt } from 'deepspace/worker'
 import type { JwtVerifierConfig, VerifyResult } from 'deepspace/worker'
 import type { AppContext, Env } from '../../worker.js'
 
@@ -25,94 +21,8 @@ export async function resolveAuth(req: Request, env: Env): Promise<VerifyResult 
   return (await verifyJwt(jwtConfig(env), token)).result
 }
 
-/** DeepSpace's auth proxy (e2e run only, until 2e) and the local debug route. */
-export function registerAuthRoutes(app: Hono<AppContext>): void {
-  const deepspaceAuth = (env: Env) => !!env.AUTH_WORKER_URL && !env.COGNITO_CLIENT_ID
-
-  // Social OAuth redirect + code exchange.
-  app.get('/api/auth/social-redirect', (c, next) => {
-    if (!deepspaceAuth(c.env)) return next()
-    const provider = c.req.query('provider')
-    if (!provider) return c.json({ error: 'Missing provider' }, 400)
-
-    const appOrigin = new URL(c.req.url).origin
-    const authOrigin = new URL(c.env.AUTH_WORKER_URL!).origin
-
-    return c.redirect(
-      `${authOrigin}/login/social?provider=${encodeURIComponent(provider)}&returnTo=${encodeURIComponent(appOrigin)}`,
-    )
-  })
-
-  app.get('/api/auth/oauth-complete', async (c, next) => {
-    if (!deepspaceAuth(c.env)) return next()
-    const code = c.req.query('code')
-    const appOrigin = new URL(c.req.url).origin
-    // Land the signed-in user in the app, not on the static landing. `/` is a
-    // static page (no auth/realtime providers), so redirecting there after auth
-    // would strand the user; `/home` is the dynamic app boundary.
-    const appHome = `${appOrigin}/home`
-
-    if (!code) return c.redirect(appHome)
-
-    const res = await authWorkerFetch(c.env, '/api/auth/exchange-code', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
-    })
-
-    if (!res.ok) return c.redirect(appHome)
-    const data = (await res.json()) as { sessionToken?: string }
-    if (!data.sessionToken) return c.redirect(appHome)
-    const sessionToken = data.sessionToken
-
-    return new Response(null, {
-      status: 302,
-      headers: {
-        Location: appHome,
-        'Set-Cookie': `${SESSION_COOKIE}=${encodeURIComponent(sessionToken)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`,
-      },
-    })
-  })
-
-  app.all('/api/auth/sign-out', async (c, next) => {
-    if (!deepspaceAuth(c.env)) return next()
-    try {
-      await authWorkerFetch(c.env, '/api/auth/sign-out', {
-        method: c.req.method,
-        headers: c.req.raw.headers,
-        body: c.req.method !== 'GET' && c.req.method !== 'HEAD' ? c.req.raw.body : undefined,
-      })
-    } catch {
-      // Still expire the app-scoped cookie below. A network/auth-worker
-      // failure must not leave the browser immediately signed back in.
-    }
-
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Set-Cookie': `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`,
-      },
-    })
-  })
-
-  // Auth proxy → auth-worker (same-origin cookies).
-  app.all('/api/auth/*', async (c, next) => {
-    if (!deepspaceAuth(c.env)) return next()
-    const url = new URL(c.req.url)
-    const res = await authWorkerFetch(c.env, url.pathname + url.search, {
-      method: c.req.method,
-      headers: c.req.raw.headers,
-      body: c.req.method !== 'GET' && c.req.method !== 'HEAD' ? c.req.raw.body : undefined,
-    })
-    const headers = new Headers(res.headers)
-    const setCookie = headers.get('set-cookie')
-    if (setCookie) {
-      headers.set('set-cookie', setCookie.replace(/;\s*Domain=[^;]*/gi, ''))
-    }
-    return new Response(res.body, { status: res.status, headers })
-  })
-
+/** The local debug route (RecordRoom inspection), gated on ALLOW_DEBUG_ROUTES and the admin role. */
+export function registerDebugRoutes(app: Hono<AppContext>): void {
   // Debug proxy → app's RecordRoom DO.
   //
   // Both this proxy and the DO gate on ALLOW_DEBUG_ROUTES === "true". The app

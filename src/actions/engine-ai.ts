@@ -4,7 +4,7 @@
  * Haiku 5.5 on Amazon Bedrock) with no tools (docs/MIGRATION.md, Phase 2a).
  *
  * Local test stand-in: when the server is local (ALLOW_DEBUG_ROUTES is
- * "true", set only by `deepspace dev`/`test` and `npm run workerd`) AND the
+ * "true", set only by `npm run workerd` and the Playwright run) AND the
  * caller is a @deepspace.test account, deterministic fake results replace
  * both calls, so automated tests cost nothing. Real accounts, and the live
  * site, always use the real AI.

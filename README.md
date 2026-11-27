@@ -42,8 +42,16 @@ Requires Node 22.15+, 24 or 26, and npm 11.6+.
 
 ```sh
 npm install
-npx deepspace auth login
-npm run validate          # type check + 106 unit tests
-npx deepspace dev start   # http://localhost:5173
-npx deepspace test run all
+npm run validate          # type check + unit tests
+npm run dev               # build, then run on workerd: http://localhost:8080
+npm test                  # two-user end-to-end tests (Playwright, own server on :8791)
+```
+
+On the `self-host` branch the app runs on plain `workerd` with Amazon
+Cognito sign-in and AI on Amazon Bedrock (see `docs/SELF-HOST.md`). The
+`main` branch is still the DeepSpace version.
+
+```sh
+# self-host branch, real AI locally (your AWS profile; see docs/SELF-HOST.md)
+npm run build && npm run workerd -- --aws
 ```

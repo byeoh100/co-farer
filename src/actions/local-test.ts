@@ -2,7 +2,7 @@
  * The one switch for local-test-only behavior (the AI stand-in and test
  * cleanup). True only when BOTH hold:
  *  - the server is local: ALLOW_DEBUG_ROUTES is "true", which only
- *    `deepspace dev` / `deepspace test` set (never the live site);
+ *    `npm run workerd`/`npm run dev` and the Playwright run set (never the server);
  *  - the caller is a @deepspace.test test account.
  * Real accounts, and everyone on the live site, never get it.
  */

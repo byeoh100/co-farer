@@ -35,7 +35,7 @@ async function check(label, fn) {
 
 const cognitoFile = process.argv.includes('--cognito') ? process.argv[process.argv.indexOf('--cognito') + 1] : null
 const cognitoUsers = cognitoFile ? JSON.parse(readFileSync(cognitoFile, 'utf8')) : null
-const NAMES = cognitoUsers ? { alice: cognitoUsers[0].name, bob: cognitoUsers[1].name } : { alice: 'Alice Stub', bob: 'Bob Stub' }
+const NAMES = cognitoUsers ? { alice: cognitoUsers[0].name, bob: cognitoUsers[1].name } : { alice: 'Alice', bob: 'Bob' }
 
 const browser = await chromium.launch()
 async function signIn(user) {
@@ -43,7 +43,7 @@ async function signIn(user) {
   const page = await context.newPage()
   page.on('pageerror', (e) => console.log(`    [${user} page error] ${e.message}`))
   if (!cognitoUsers) {
-    await page.goto(`${BASE}/api/auth/stub-login?user=${user}`)
+    await page.goto(`${BASE}/api/auth/test-login?user=${user}`)
     await page.waitForURL(/\/trips$/, { timeout: 15_000 })
     return page
   }
