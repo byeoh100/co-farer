@@ -89,7 +89,7 @@ const b = await signIn('bob')
 let tripId = ''
 
 await check('both users see the app signed in (My trips)', async () => {
-  for (const p of [a, b]) await p.getByRole('heading', { name: 'My trips' }).waitFor({ timeout: 15_000 })
+  for (const p of [a, b]) await p.getByRole('heading', { name: 'Where to next?' }).waitFor({ timeout: 15_000 })
 })
 
 await check('Alice creates a trip in the UI and opens it', async () => {

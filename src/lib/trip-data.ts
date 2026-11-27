@@ -40,6 +40,8 @@ export interface Member {
   status: 'active' | 'left'
   displayName: string
   imageUrl: string | null
+  /** When this member row was created: the join order behind person colours. */
+  joinedAt: string
 }
 
 type TripRow = {
@@ -107,6 +109,7 @@ export function useMembers(tripId: string | undefined, { includeLeft = false } =
           status: r.data.status === 'left' ? 'left' : 'active',
           displayName: r.data.displayName || 'Traveler',
           imageUrl: r.data.imageUrl || null,
+          joinedAt: r.createdAt,
         }),
       )
       .filter((m) => includeLeft || m.status === 'active')

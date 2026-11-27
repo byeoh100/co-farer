@@ -204,3 +204,29 @@ export function bestWindows(byDay: Map<string, Set<string>>, nights: number, tod
   }
   return picked
 }
+
+/**
+ * The 14-day window the overview's dates card shows (co-farer-redesign/SPEC.md):
+ * centred on the locked dates when there are some; otherwise starting at the
+ * earliest availability still ahead (or today).
+ */
+export function overviewWindow(locked: DateRange | null, ranges: Array<{ start: string; end: string }>, today: string, days = 14): string[] {
+  let start: string
+  if (locked) {
+    const len = rangeLength(locked)
+    start = len >= days ? locked.start : addDays(locked.start, -Math.ceil((days - len) / 2))
+  } else {
+    const ahead = ranges.map((r) => (r.end >= today ? (r.start > today ? r.start : today) : null)).filter((d): d is string => !!d).sort()
+    start = ahead[0] ?? today
+  }
+  return eachDay({ start, end: addDays(start, days - 1) })
+}
+
+/** "S", "M", "T", … for a YYYY-MM-DD day. */
+export function weekdayLetter(iso: string): string {
+  return 'SMTWTFS'[new Date(`${iso}T12:00:00Z`).getUTCDay()]
+}
+
+export function weekdayName(iso: string): string {
+  return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(`${iso}T12:00:00Z`).getUTCDay()]
+}

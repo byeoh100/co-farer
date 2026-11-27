@@ -1,43 +1,37 @@
 /**
- * Top nav — minimal placeholder bar wired to the app's mechanisms:
- * nav.ts-driven links (with role/dev filtering), sign-in via <SignInDialog> (Cognito),
- * and sign-out. Restyle or rebuild it freely; keep the data-testid hooks
- * (`app-navigation`, `nav-sign-in-button`, `nav-user-name`, `nav-user-email`)
- * — the shipped tests rely on them. `nav-user-email` is the one that carries
- * an identity the test can check exactly: a display name is optional, the
- * email is the credential the session was opened with.
+ * The app header (co-farer-redesign/SPEC.md, AppHeader): the logo mark and
+ * CO-FARER wordmark, then the nav links (the active one underlined in accent
+ * ink, aria-current="page"). A trip page adds its name to the nav and its
+ * avatar stack + Invite on the right (HeaderPortal). Then the account menu,
+ * or "Sign in". Under 768px the nav links move into a menu.
+ *
+ * Kept test hooks: app-navigation, nav-sign-in-button, nav-user-name,
+ * nav-user-email.
  */
 
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuthProfileReady } from 'deepspace'
-import { SignInDialog, signOutEverywhere } from './SignInDialog'
-import { ChevronDown, LogOut, Menu, X } from 'lucide-react'
+import { LogOut, Menu, X } from 'lucide-react'
 import type { Role } from '../constants'
 import { nav } from '../nav'
 import { cn } from '../lib/utils'
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './ui'
+import { initials } from '../lib/personColor'
+import { fallbackColor } from '../lib/person-colors-context'
+import { signInPath, signOutEverywhere } from './SignIn'
+import { useHeaderSlotRef } from './HeaderSlot'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui'
 
 export default function Navigation() {
   const { isLoaded, isSignedIn, user, userLoading } = useAuthProfileReady({ requireUser: true })
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [showAuthModal, setShowAuthModal] = useState(false)
+  const navSlot = useHeaderSlotRef('nav')
+  const endSlot = useHeaderSlotRef('end')
 
   const profileReady = !isSignedIn || (!userLoading && !!user)
   const userRole = (user?.role ?? 'anonymous') as Role | 'anonymous'
 
-  // Close the mobile menu when navigating
   useEffect(() => {
     setMobileMenuOpen(false)
   }, [location.pathname])
@@ -50,16 +44,17 @@ export default function Navigation() {
     return item.roles.includes(userRole as Role)
   })
 
-  const navLink = (item: (typeof nav)[number]) => {
-    const active = location.pathname.startsWith(item.path)
+  const navLink = (item: (typeof nav)[number], mobile = false) => {
+    const active = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)
     return (
       <Link
         key={item.path}
         to={item.path}
         aria-current={active ? 'page' : undefined}
         className={cn(
-          'px-3 py-1.5 text-sm',
-          active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+          'whitespace-nowrap border-b-2 pb-1.5 text-sm',
+          active ? 'border-cf-accent-ink text-cf-text' : 'border-transparent text-cf-muted hover:text-cf-text',
+          mobile && 'px-2 py-2.5',
         )}
       >
         {item.label}
@@ -67,99 +62,80 @@ export default function Navigation() {
     )
   }
 
+  const [first, ...rest] = visibleNav
+
   return (
-    <>
-      <nav data-testid="app-navigation" className="border-b border-border bg-background">
-        <div className="mx-auto flex h-12 max-w-7xl items-center gap-4 px-4">
-          <Link to="/trips" className="text-sm font-semibold text-foreground">
-            Co-farer
-          </Link>
+    <nav data-testid="app-navigation" className="bg-cf-bg">
+      <div className="mx-auto flex max-w-[1280px] flex-wrap items-center gap-x-7 gap-y-3 border-b border-cf-line px-4 py-4 sm:px-8">
+        <Link to="/trips" className="flex items-center gap-2.5" aria-label="Co-farer home">
+          <img src="/logo-mark.svg" alt="" width={30} height={30} className="h-[30px] w-[30px]" />
+          <span className="font-display text-[26px] tracking-[0.5px]">Co-farer</span>
+        </Link>
 
-          <div className="hidden items-center md:flex">{visibleNav.map(navLink)}</div>
-
-          <div className="flex-1" />
-
-          {!isLoaded ? null : isSignedIn && !profileReady ? (
-            /* Signed in, profile still loading — skeleton pill, never the
-               Sign in button (that would offer sign-in to a signed-in user). */
-            <div className="flex items-center gap-2 rounded-full border border-border bg-card/60 py-1 pl-1 pr-2.5">
-              <div className="h-6 w-6 animate-pulse rounded-full bg-muted" />
-              <div className="hidden h-4 w-20 animate-pulse rounded-md bg-muted sm:block" />
-            </div>
-          ) : isSignedIn && user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <button
-                    aria-label="Account menu"
-                    className="group flex items-center gap-2 rounded-full border border-border bg-card/60 py-1 pl-1 pr-2.5 text-sm transition-colors hover:bg-card"
-                  >
-                    <Avatar className="h-6 w-6 ring-1 ring-inset ring-border">
-                      <AvatarImage src={user.imageUrl ?? undefined} referrerPolicy="no-referrer" />
-                      <AvatarFallback className="text-[11px]">
-                        {(user.name?.[0] ?? user.email?.[0] ?? '?').toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span
-                      data-testid="nav-user-name"
-                      className="hidden max-w-[140px] truncate text-foreground sm:inline"
-                    >
-                      {user.name || user.email}
-                    </span>
-                    <ChevronDown
-                      className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-150 group-data-[popup-open]:rotate-180"
-                      aria-hidden
-                    />
-                  </button>
-                }
-              />
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>
-                  <div className="truncate font-medium text-foreground">
-                    {user.name || 'Signed in'}
-                  </div>
-                  <div
-                    data-testid="nav-user-email"
-                    className="truncate text-xs font-normal text-muted-foreground"
-                  >
-                    {user.email}
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={signOutEverywhere}>
-                  <LogOut aria-hidden />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <button
-              data-testid="nav-sign-in-button"
-              onClick={() => setShowAuthModal(true)}
-              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90"
-            >
-              Sign in
-            </button>
-          )}
-
-          <button
-            className="inline-flex h-8 w-8 items-center justify-center text-muted-foreground hover:text-foreground md:hidden"
-            onClick={() => setMobileMenuOpen((prev) => !prev)}
-            aria-label="Toggle menu"
-            aria-expanded={mobileMenuOpen}
-          >
-            {mobileMenuOpen ? <X className="h-4 w-4" aria-hidden /> : <Menu className="h-4 w-4" aria-hidden />}
-          </button>
+        <div className="hidden items-center gap-[22px] pt-1.5 md:flex">
+          {first && navLink(first)}
+          {/* The current trip's name (trip pages only). */}
+          <span ref={navSlot} className="contents" />
+          {rest.map((item) => navLink(item))}
         </div>
 
-        {mobileMenuOpen && (
-          <div className="flex flex-col border-t border-border px-2 py-2 md:hidden">
-            {visibleNav.map(navLink)}
-          </div>
-        )}
-      </nav>
+        <div className="flex-1" />
 
-      <SignInDialog open={showAuthModal} onClose={() => setShowAuthModal(false)} />
-    </>
+        <div ref={endSlot} className="contents" />
+
+        {!isLoaded ? null : isSignedIn && !profileReady ? (
+          <div className="h-[34px] w-[34px] animate-pulse rounded-full bg-cf-surface-2" />
+        ) : isSignedIn && user ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  aria-label="Account menu"
+                  className="flex h-[34px] w-[34px] items-center justify-center rounded-full text-xs font-semibold text-[#111111]"
+                  style={{ background: fallbackColor(user.id ?? user.email ?? 'me') }}
+                >
+                  <span aria-hidden>{initials(user.name || user.email || '?')}</span>
+                  <span data-testid="nav-user-name" className="sr-only">
+                    {user.name || user.email}
+                  </span>
+                </button>
+              }
+            />
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                <div className="truncate font-medium text-foreground">{user.name || 'Signed in'}</div>
+                <div data-testid="nav-user-email" className="truncate text-xs font-normal text-muted-foreground">
+                  {user.email}
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={signOutEverywhere}>
+                <LogOut aria-hidden />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : location.pathname === '/sign-in' ? null : (
+          <Link
+            data-testid="nav-sign-in-button"
+            to={signInPath(`${location.pathname}${location.search}`)}
+            className="inline-flex h-10 items-center rounded-full bg-cf-accent px-[18px] text-sm font-semibold text-white hover:bg-[#3456b8]"
+          >
+            Sign in
+          </Link>
+        )}
+
+        <button
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full text-cf-muted hover:text-cf-text md:hidden"
+          onClick={() => setMobileMenuOpen((prev) => !prev)}
+          aria-label="Toggle menu"
+          aria-expanded={mobileMenuOpen}
+        >
+          {mobileMenuOpen ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
+        </button>
+
+        {mobileMenuOpen && <div className="flex w-full flex-col md:hidden">{visibleNav.map((item) => navLink(item, true))}</div>}
+      </div>
+    </nav>
   )
 }

@@ -81,7 +81,7 @@ export function HousingFull({ trip, members, me }: { trip: Trip; members: Member
     <div className="mx-auto w-full max-w-3xl space-y-4 p-4" data-testid="housing-full">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
         {locked ? (
-          <span className="flex items-center gap-1 font-medium text-primary" data-testid="housing-status">
+          <span className="flex items-center gap-1 font-medium text-cf-accent-ink" data-testid="housing-status">
             <Lock className="h-4 w-4" aria-hidden /> Housing is locked
           </span>
         ) : board?.deadline ? (
@@ -273,8 +273,8 @@ function OptionCard({
     <li
       className={cn(
         'rounded-xl border border-border bg-card p-4 transition-shadow duration-300',
-        isNew && 'border-primary ring-2 ring-primary/50',
-        winner && 'border-primary ring-2 ring-primary/30',
+        isNew && 'border-cf-accent-ink ring-2 ring-primary/50',
+        winner && 'border-cf-accent-ink ring-2 ring-primary/30',
         faded && 'opacity-60',
         tied && 'border-warning',
       )}
@@ -308,7 +308,7 @@ function OptionCard({
             ) : (
               option.title
             )}
-            {isNew && <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] text-primary" data-testid="new-badge">New</span>}
+            {isNew && <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] text-cf-accent-ink" data-testid="new-badge">New</span>}
             {winner && <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] text-primary-foreground">Chosen</span>}
             {tied && <span className="rounded-full bg-warning/20 px-2 py-0.5 text-[11px]">Tied</span>}
           </p>
@@ -333,7 +333,7 @@ function OptionCard({
             <p className="text-[11px] text-muted-foreground">{option.priceSource === 'member' ? 'added by a member' : 'researched'}</p>
           )}
           {!faded && !winner && !editingPrice && (
-            <button className="text-[11px] text-primary hover:underline" onClick={() => { setPriceInput(option.total?.toString() ?? ''); setEditingPrice(true) }} data-testid="edit-price">
+            <button className="text-[11px] text-cf-accent-ink hover:underline" onClick={() => { setPriceInput(option.total?.toString() ?? ''); setEditingPrice(true) }} data-testid="edit-price">
               {option.price == null ? 'Add price' : 'Change price'}
             </button>
           )}
@@ -397,7 +397,7 @@ function OptionCard({
             <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs" data-testid="option-sources">
               <span className="text-muted-foreground">Sources:</span>
               {r.sources.map((s) => (
-                <a key={s} href={s} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex items-center gap-0.5 text-primary hover:underline">
+                <a key={s} href={s} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex items-center gap-0.5 text-cf-accent-ink hover:underline">
                   {hostname(s)} <ExternalLink className="h-3 w-3" aria-hidden />
                 </a>
               ))}
@@ -406,7 +406,7 @@ function OptionCard({
         </div>
       )}
       {fit && (
-        <p className={cn('mt-2 text-xs', fit.tone === 'over' ? 'text-destructive' : 'text-muted-foreground')} data-testid="option-fit">
+        <p className={cn('mt-2 text-xs', fit.tone === 'over' ? 'text-cf-warn' : 'text-muted-foreground')} data-testid="option-fit">
           {fit.text}
         </p>
       )}

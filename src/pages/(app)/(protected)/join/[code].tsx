@@ -52,7 +52,7 @@ export default function JoinPage() {
           <>
             <h1 className="text-lg font-semibold">Can’t join</h1>
             <p className="mt-2 text-sm text-muted-foreground" data-testid="join-error">{problem}</p>
-            <Link to="/trips" className="mt-6 inline-block text-sm text-primary underline-offset-4 hover:underline">
+            <Link to="/trips" className="mt-6 inline-block text-sm text-cf-accent-ink underline-offset-4 hover:underline">
               Go to my trips
             </Link>
           </>

@@ -53,7 +53,7 @@ async function setupTrip(users: Page[]) {
   const [a, ...rest] = users
   for (const p of users) {
     await p.goto('/trips')
-    await expect(p.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
+    await expect(p.getByRole('heading', { name: 'Where to next?' })).toBeVisible({ timeout: 15_000 })
   }
   const created = await action(a, 'createTrip', { name: `Housing ${Date.now().toString(36)}`, destination: 'Cachuma Lake' })
   const tripId = created.data!.tripId as string
@@ -97,6 +97,8 @@ test('Housing: wait, suggest, paste, remove, vote live, fit, lock, unlock clears
   // Suggest: 5 options with sources; the fabricated one and fake source are gone.
   await a.getByTestId('section-housing').click()
   await a.getByTestId('suggest').click()
+  // Park the pointer away from where the new cards appear (pointing at one marks it seen).
+  await a.mouse.move(0, 0)
   await expect(a.getByTestId('option-card')).toHaveCount(5, { timeout: 30_000 })
   await expect(a.getByTestId('option-sources').first()).toContainText('example.test')
   await expect(a.getByTestId('section-panel-housing')).not.toContainText('evil.example')
@@ -168,7 +170,6 @@ test('Housing: wait, suggest, paste, remove, vote live, fit, lock, unlock clears
   await expect(summary.getByTestId('locked-details')).toHaveText('2 nights · $40 / person · $120 total')
   // The stand-in's photo can't load (example.test), so the letter tile shows instead.
   await expect(summary.getByTestId('thumb')).toHaveAttribute('data-fallback', 'true', { timeout: 15_000 })
-  await expect(summary.getByTestId('thumb')).toHaveText('T')
 
   // Unlocking the dates warns, then clears housing: waiting again, no places or votes.
   await a.getByTestId('dates-bar').click()

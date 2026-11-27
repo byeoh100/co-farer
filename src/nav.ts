@@ -17,6 +17,6 @@ export interface NavItem {
 
 export const nav: NavItem[] = [
   { path: '/trips', label: 'My trips' },
-  { path: '/settings', label: 'Profile' },
+  { path: '/settings', label: 'My settings' },
   // ── Features add nav items below this line ──
 ]

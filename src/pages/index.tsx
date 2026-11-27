@@ -19,7 +19,7 @@ export default function Landing() {
     <>
       <Seo {...seo} path="/" />
       <div data-testid="static-landing" className="flex min-h-screen flex-col items-center justify-center px-6 py-16 text-center">
-        <p className="mb-3 text-sm font-medium uppercase tracking-widest text-primary">Co-farer</p>
+        <p className="mb-3 text-sm font-medium uppercase tracking-widest text-cf-accent-ink">Co-farer</p>
         <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
           Plan the group trip without the group chat chaos
         </h1>

@@ -1,101 +1,114 @@
 @import "tailwindcss" source(none);
-@import "./themes.css";
 
 /* Scan local source + SDK components for Tailwind class usage */
 @source "./**/*.{ts,tsx}";
 @source "../node_modules/deepspace/dist/**/*.js";
 
 /*
- * Theming — pure shadcn/ui CSS variables with [data-theme] selectors.
- *
- * The @theme block below holds the default theme (slate). All other themes
- * live in `themes.css` as `[data-theme="<id>"]` override blocks. Switching
- * themes = changing the data-theme attribute on <html> in index.html. No
- * JS, no FOUC.
- *
- * Status colors (success, warning, info) are intentionally NOT themed —
- * they stay consistent across every preset.
+ * Midnight Basecamp (co-farer-redesign/SPEC.md): one dark theme.
+ * The --cf-* tokens are Tailwind colors (`bg-cf-surface`, `text-cf-muted`)
+ * and plain variables (`var(--cf-surface)`, :root below). The shadcn tokens
+ * map onto them, so existing components restyle without edits.
  */
 @theme {
-  /* shadcn core tokens — slate (default): neutral gray on near-black, indigo accent */
-  --color-background: #0a0a0a;
-  --color-foreground: #e8eaed;
-  --color-card: #161616;
-  --color-card-foreground: #e8eaed;
-  --color-popover: #161616;
-  --color-popover-foreground: #e8eaed;
-  --color-primary: #818cf8;
+  --color-cf-bg: #111111;
+  --color-cf-surface: #1b1b1b;
+  --color-cf-surface-2: #232323;
+  --color-cf-track: #2a2a2a;
+  --color-cf-line: #262626;
+  --color-cf-border: #3a3a3a;
+  --color-cf-text: #f2efea;
+  --color-cf-text-2: #d6d2cc;
+  --color-cf-muted: #a39e97;
+  --color-cf-faint: #6e6a64;
+  --color-cf-neutral-bar: #4a4540;
+  --color-cf-accent: #2a4aa8;
+  --color-cf-accent-ink: #9db4ff;
+  --color-cf-accent-soft: rgb(42 74 168 / 0.25);
+  --color-cf-ok-bg: #2a3a25;
+  --color-cf-ok: #b9e3a1;
+  --color-cf-warn: #f4b183;
+
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+
+  --color-background: #111111;
+  --color-foreground: #f2efea;
+  --color-card: #1b1b1b;
+  --color-card-foreground: #f2efea;
+  --color-popover: #1b1b1b;
+  --color-popover-foreground: #f2efea;
+  --color-primary: #2a4aa8;
   --color-primary-foreground: #ffffff;
-  --color-secondary: #1e1e1e;
-  --color-secondary-foreground: #e8eaed;
-  --color-muted: #1e1e1e;
-  --color-muted-foreground: #9ca3af;
-  --color-accent: #262626;
-  --color-accent-foreground: #e8eaed;
-  --color-destructive: #ef4444;
-  --color-destructive-foreground: #ffffff;
-  --color-border: rgba(60, 64, 67, 0.6);
-  --color-input: rgba(60, 64, 67, 0.6);
-  --color-ring: #818cf8;
-  --radius: 0.5rem;
+  --color-secondary: #232323;
+  --color-secondary-foreground: #f2efea;
+  --color-muted: #232323;
+  --color-muted-foreground: #a39e97;
+  --color-accent: #2a2a2a;
+  --color-accent-foreground: #f2efea;
+  --color-destructive: #f28b82;
+  --color-destructive-foreground: #111111;
+  --color-border: #262626;
+  --color-input: #3a3a3a;
+  --color-ring: #9db4ff;
 
-  /*
-   * Map the rounded-* utilities onto --radius so a theme (or you) can change
-   * the app's shape language in one place. At the default 0.5rem these equal
-   * Tailwind's stock values, so there is no visual change until a theme
-   * overrides --radius.
-   */
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
+  --radius: 0.75rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.25rem;
 
-  /* Status colors — constant across all themes */
-  --color-success: #10b981;
-  --color-success-foreground: #ffffff;
-  --color-warning: #f59e0b;
-  --color-warning-foreground: #ffffff;
-  --color-info: #3b82f6;
-  --color-info-foreground: #ffffff;
+  --color-success: #b9e3a1;
+  --color-success-foreground: #111111;
+  --color-warning: #f4b183;
+  --color-warning-foreground: #111111;
+  --color-info: #9db4ff;
+  --color-info-foreground: #111111;
 
-  /*
-   * Shadows — slate (default). Each theme in themes.css tunes these.
-   *
-   * Toned down 2026-05: previous values were 8px/12px offset with
-   * 32px/40px blur which read as a heavy halo under every Card on
-   * the page. New values are Linear/Stripe-style: barely-there at
-   * rest, slightly more present on hover.
-   *
-   * IMPORTANT: starter components (`Card`, `Dialog`, `CardGrid`,
-   * `Navigation`, `Toast`) intentionally use literal shadow values
-   * via `shadow-[…]` arbitrary-value classes, NOT the
-   * `shadow-card` / `shadow-card-hover` token classes Tailwind v4
-   * generates from this @theme block. Why: Tailwind's @theme directive
-   * compiles these tokens into the utility-class definitions at build
-   * time, and runtime [data-theme] overrides don't always cancel the
-   * baked baseline cleanly — apps switching themes were getting the
-   * slate value carried forward on the compiled `shadow-card` class.
-   * Sidestepping the token system in starter components is the
-   * deterministic fix. See docs/platform/theming-shadows.md.
-   */
-  --shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.12);
-  --shadow-card-hover: 0 2px 8px 0 rgba(0, 0, 0, 0.16);
-
-  /* Shell tokens: the area behind a multi-panel layout, and the raised
-     surface a page renders into. Used by templates whose (app)/_layout is a
-     shell (e.g. copilot's sidebar | panel | chat); a single-column layout
-     simply doesn't reference them. In every theme keep the panel reading as
-     elevated: dark → panel lighter than shell; light → white panel on a
-     faintly darker shell. */
-  --color-shell: #0a0a0a;
-  --color-shell-panel: #161616;
-
-  /* Animations */
+  --shadow-card: none;
+  --shadow-card-hover: none;
+  --color-shell: #111111;
+  --color-shell-panel: #1b1b1b;
   --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
 }
 
-/* Theme override blocks live in `themes.css` — imported above. */
+:root {
+  --cf-bg: #111111;
+  --cf-surface: #1b1b1b;
+  --cf-surface-2: #232323;
+  --cf-track: #2a2a2a;
+  --cf-line: #262626;
+  --cf-border: #3a3a3a;
+  --cf-text: #f2efea;
+  --cf-text-2: #d6d2cc;
+  --cf-muted: #a39e97;
+  --cf-faint: #6e6a64;
+  --cf-neutral-bar: #4a4540;
+  --cf-accent: #2a4aa8;
+  --cf-accent-ink: #9db4ff;
+  --cf-accent-soft: rgb(42 74 168 / 0.25);
+  --cf-ok-bg: #2a3a25;
+  --cf-ok: #b9e3a1;
+  --cf-warn: #f4b183;
+}
+
+/* Display type: Barlow Condensed 700, uppercase from CSS. */
+@utility font-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+/* Thin in-card scroll area (SPEC.md ScrollArea). */
+@utility cf-scroll {
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--cf-border) transparent;
+}
+
 
 /*
  * Animation keyframes for shadcn components.
@@ -164,7 +177,7 @@
   }
 
   body {
-    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-sans);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -184,7 +197,7 @@
 
   ::-webkit-scrollbar-thumb {
     border-radius: 0.25rem;
-    background-color: var(--color-border);
+    background-color: var(--cf-border);
   }
 
   ::-webkit-scrollbar-thumb:hover {
@@ -197,38 +210,31 @@
     color: var(--color-primary-foreground);
   }
 
-  /*
-   * Focus indication is intentionally NOT applied app-wide via a
-   * `*:focus-visible` rule. Doing so paints a colored outline onto
-   * every focusable element on the page — including programmatically
-   * focusable containers like Radix DismissableLayer wrappers,
-   * dialog overlays, and any element with `tabindex={-1}` used for
-   * scroll containment. The result reads as "the entire panel /
-   * dialog is selected" the moment a child button is clicked.
-   *
-   * Per-component focus indicators (e.g. shadcn's
-   * `focus-visible:ring-1` on Button, `focus-visible:border-ring` on
-   * Input / Textarea / Select) are sufficient for keyboard
-   * accessibility and don't bleed onto containers.
-   *
-   * If you DO need a global indicator for very keyboard-heavy apps,
-   * scope it tightly — e.g. only to interactive elements:
-   *
-   *   a:focus-visible,
-   *   button:focus-visible,
-   *   [role="button"]:focus-visible,
-   *   input:focus-visible,
-   *   select:focus-visible,
-   *   textarea:focus-visible {
-   *     outline: 2px solid var(--color-primary);
-   *     outline-offset: 2px;
-   *   }
-   *
-   * — never `*`.
-   */
+  /* Focus rings on interactive elements and keyboard-scrollable areas. */
+  a:focus-visible,
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [data-scroll-area]:focus-visible {
+    outline: 2px solid var(--cf-accent-ink);
+    outline-offset: 2px;
+  }
+
+  .tabular { font-variant-numeric: tabular-nums; }
 
   /* Prevent 300ms tap delay on mobile */
   a, button, [role="button"], input, select, textarea {
     touch-action: manipulation;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

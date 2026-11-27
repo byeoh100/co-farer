@@ -57,7 +57,7 @@ test('Dates: ranges, matching heatmap, lock, refusals, unlock, leave', async ({ 
 
   // Setup: A organizes, B joins by link.
   await a.page.goto('/trips')
-  await expect(a.page.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
+  await expect(a.page.getByRole('heading', { name: 'Where to next?' })).toBeVisible({ timeout: 15_000 })
   const created = (await action(a.page, 'createTrip', { name: 'Dates check', destination: 'Cachuma Lake' })) as { data: { tripId: string } }
   const tripId = created.data.tripId
   await a.page.goto(`/trip/${tripId}`)
@@ -69,7 +69,7 @@ test('Dates: ranges, matching heatmap, lock, refusals, unlock, leave', async ({ 
   await b.page.waitForURL(/settings\?welcome=1/, { timeout: 20_000 })
   await b.page.goto(`/trip/${tripId}`)
 
-  await expect(a.page.getByTestId('dates-summary')).toHaveText(/Not locked yet/, { timeout: 15_000 })
+  await expect(a.page.getByTestId('dates-summary')).toHaveText(/Picking dates/, { timeout: 15_000 })
 
   // A: 10–14; B: 12–16 (next month). Overlap 12–14 = 2 people.
   await openCalendarOnNextMonth(a.page)
@@ -120,7 +120,8 @@ test('Dates: ranges, matching heatmap, lock, refusals, unlock, leave', async ({ 
   await a.page.keyboard.press('Escape')
   await b.page.keyboard.press('Escape')
   for (const [who, page] of [['A', a.page], ['B', b.page]] as const) {
-    await expect(page.getByTestId('dates-summary'), `${who}'s date bar`).toContainText('Locked · 2 of 2 free', { timeout: 15_000 })
+    await expect(page.getByTestId('dates-summary'), `${who}'s date bar`).toContainText('Locked', { timeout: 15_000 })
+    await expect(page.getByTestId('dates-free')).toHaveText(/^All 2 free on the locked dates/)
   }
 
   // Availability is read-only while locked.
@@ -132,7 +133,7 @@ test('Dates: ranges, matching heatmap, lock, refusals, unlock, leave', async ({ 
   await a.page.getByTestId('unlock-dates').click()
   await a.page.getByRole('button', { name: 'Unlock dates' }).last().click()
   for (const page of [a.page, b.page]) {
-    await expect(page.getByTestId('dates-summary')).toHaveText(/Not locked yet/, { timeout: 15_000 })
+    await expect(page.getByTestId('dates-summary')).toHaveText(/Picking dates/, { timeout: 15_000 })
   }
 
   // B leaves: B's dates stop counting.
@@ -146,7 +147,7 @@ test('Dates: ranges, matching heatmap, lock, refusals, unlock, leave', async ({ 
 test('Dates: the server refuses bad ranges and other people’s ranges', async ({ users }) => {
   const [a, b] = await users(2)
   await a.page.goto('/trips')
-  await expect(a.page.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
+  await expect(a.page.getByRole('heading', { name: 'Where to next?' })).toBeVisible({ timeout: 15_000 })
   const { data } = (await action(a.page, 'createTrip', { name: 'Dates refusals', destination: 'Cachuma Lake' })) as { data: { tripId: string } }
   const tripId = data.tripId
 
@@ -164,7 +165,7 @@ test('Dates: the server refuses bad ranges and other people’s ranges', async (
   }
   // B isn't a member: refused before anything else.
   await b.page.goto('/trips')
-  await expect(b.page.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
+  await expect(b.page.getByRole('heading', { name: 'Where to next?' })).toBeVisible({ timeout: 15_000 })
   expect(await action(b.page, 'removeAvailability', { tripId, rangeId: added.data.rangeId })).toMatchObject({ code: 'not_a_member' })
   expect(await action(b.page, 'addAvailability', { tripId, start: nextMonthDay(3), end: nextMonthDay(4) })).toMatchObject({ code: 'not_a_member' })
 })

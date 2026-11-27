@@ -21,6 +21,7 @@ import { DeepSpaceAuthProvider, useAuthStatus } from 'deepspace'
 import { RecordProvider, RecordScope } from 'deepspace'
 import { ScopeRefreshContext } from '../../lib/scope-refresh'
 import Navigation from '../../components/Navigation'
+import { HeaderSlotProvider } from '../../components/HeaderSlot'
 import { useToast } from '@/components/ui'
 import { APP_NAME, SCOPE_ID } from '../../constants'
 import { schemas } from '../../schemas'
@@ -32,14 +33,16 @@ export default function AppLayout() {
           when <Seo> unmounts, so every route without <Seo> sets its own. */}
       <title>{APP_NAME}</title>
       <AuthBoot>
-        <div className="flex h-screen flex-col bg-background overflow-hidden">
-          <Navigation />
-          <main className="flex-1 overflow-y-auto min-h-0">
-            <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground">Loading...</div>}>
-              <Outlet />
-            </Suspense>
-          </main>
-        </div>
+        <HeaderSlotProvider>
+          <div className="flex h-screen flex-col bg-background overflow-hidden">
+            <Navigation />
+            <main className="flex-1 overflow-y-auto min-h-0">
+              <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground">Loading...</div>}>
+                <Outlet />
+              </Suspense>
+            </main>
+          </div>
+        </HeaderSlotProvider>
       </AuthBoot>
     </DeepSpaceAuthProvider>
   )

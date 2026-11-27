@@ -9,14 +9,17 @@
  *    the stage (the area under the trip header), minimize button closes.
  *  - `?section=<id>` reflects the open section: Back closes it, and a link
  *    can open a trip straight to a section.
- *  - Card is a button with aria-expanded; focus moves in on open and back to
- *    the card on close; Escape closes. prefers-reduced-motion: instant.
+ *  - The card is a plain panel (it holds its own buttons, e.g. "Claim seat").
+ *    Its open button(s) get `open`, aria-expanded and aria-controls from
+ *    the render prop; the grow starts from the clicked card
+ *    (`data-section-card`). Focus moves in on open and back to the button
+ *    on close; Escape closes. prefers-reduced-motion: instant.
  */
 
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject, type SyntheticEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Maximize2, Minimize2 } from 'lucide-react'
+import { ArrowLeft, Minimize2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const DURATION = 380
@@ -35,24 +38,33 @@ function reducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
+/** What a card gets to open its section. */
+export interface SectionControl {
+  open: (e?: SyntheticEvent<HTMLElement>) => void
+  expanded: boolean
+  /** Spread onto every button that opens the section. */
+  buttonProps: { 'aria-expanded': boolean; 'aria-controls': string }
+}
+
 export function ExpandableSection({
   id,
   label,
-  summary,
   full,
-  className,
+  children,
 }: {
   id: string
   label: string
-  summary: ReactNode
   full: ReactNode
-  className?: string
+  /** The card(s): plain panels marked `data-section-card`, with open buttons. */
+  children: (control: SectionControl) => ReactNode
 }) {
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
   const location = useLocation()
   const stage = useContext(SectionStageContext)
-  const cardRef = useRef<HTMLButtonElement>(null)
+  /** The card the section grows from, and the button to refocus on close. */
+  const cardRef = useRef<HTMLElement | null>(null)
+  const returnFocusRef = useRef<HTMLElement | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const pushedRef = useRef(false)
 
@@ -71,7 +83,11 @@ export function ExpandableSection({
     return { top, left: s.left, width: s.width, height: Math.max(240, vh - top - 16) }
   }, [stage])
 
-  const cardRect = useCallback((): Rect | null => (cardRef.current ? toRect(cardRef.current.getBoundingClientRect()) : null), [])
+  const cardRect = useCallback((): Rect | null => {
+    const el = cardRef.current ?? document.querySelector<HTMLElement>(`[data-section-card="${id}"]`)
+    return el ? toRect(el.getBoundingClientRect()) : null
+  }, [id])
+  const refocus = () => (returnFocusRef.current ?? document.querySelector<HTMLElement>(`[data-testid="section-${id}"]`))?.focus()
 
   // URL → phase. Opening/closing animations run from here so Back works too.
   useLayoutEffect(() => {
@@ -99,7 +115,7 @@ export function ExpandableSection({
       const to = cardRect()
       if (!to || reducedMotion()) {
         setPhase('closed')
-        cardRef.current?.focus()
+        refocus()
         return
       }
       setPhase('closing')
@@ -107,7 +123,7 @@ export function ExpandableSection({
       setRect(to)
       const t = setTimeout(() => {
         setPhase('closed')
-        cardRef.current?.focus()
+        refocus()
       }, DURATION)
       return () => clearTimeout(t)
     }
@@ -131,7 +147,10 @@ export function ExpandableSection({
     if (phase === 'open') panelRef.current?.querySelector<HTMLElement>('[data-autofocus]')?.focus()
   }, [phase])
 
-  const open = () => {
+  const open = (e?: SyntheticEvent<HTMLElement>) => {
+    const btn = e?.currentTarget ?? null
+    returnFocusRef.current = btn
+    cardRef.current = (btn?.closest('[data-section-card]') as HTMLElement | null) ?? btn
     pushedRef.current = true
     const next = new URLSearchParams(params)
     next.set('section', id)
@@ -163,26 +182,7 @@ export function ExpandableSection({
 
   return (
     <>
-      <button
-        ref={cardRef}
-        type="button"
-        aria-expanded={shown}
-        aria-controls={`section-panel-${id}`}
-        data-testid={`section-${id}`}
-        onClick={open}
-        className={cn(
-          'group flex min-h-24 min-w-0 flex-col rounded-xl border border-border bg-card p-3 text-left transition-colors hover:border-ring/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          'min-[900px]:flex-1 min-[900px]:p-4',
-          shown && 'invisible',
-          className,
-        )}
-      >
-        <span className="flex w-full items-center justify-between">
-          <span className="text-sm font-semibold">{label}</span>
-          <Maximize2 className="hidden h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground min-[900px]:block" aria-hidden />
-        </span>
-        <span className="mt-1.5 block w-full min-w-0 flex-1">{summary}</span>
-      </button>
+      {children({ open, expanded: shown, buttonProps: { 'aria-expanded': shown, 'aria-controls': `section-panel-${id}` } })}
 
       {shown &&
         rect &&
@@ -194,29 +194,29 @@ export function ExpandableSection({
             aria-modal="false"
             aria-label={label}
             data-testid={`section-panel-${id}`}
-            className="fixed z-40 flex flex-col overflow-hidden border border-border bg-card shadow-xl min-[900px]:rounded-xl"
+            className="fixed z-40 flex flex-col overflow-hidden bg-cf-surface min-[900px]:rounded-[20px] min-[900px]:border min-[900px]:border-cf-line"
             style={{
               top: rect.top,
               left: rect.left,
               width: rect.width,
               height: rect.height,
-              borderRadius: phase === 'open' ? undefined : 12,
+              borderRadius: phase === 'open' ? undefined : 20,
               transition: animate ? `top ${DURATION}ms ${EASE}, left ${DURATION}ms ${EASE}, width ${DURATION}ms ${EASE}, height ${DURATION}ms ${EASE}` : undefined,
             }}
           >
-            <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+            <div className="flex items-center gap-2 border-b border-cf-line px-4 py-3">
               <button
                 type="button"
                 data-autofocus
                 onClick={close}
                 aria-label={`Close ${label}`}
                 data-testid={`section-close-${id}`}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full text-cf-muted hover:bg-cf-surface-2 hover:text-cf-text"
               >
                 <ArrowLeft className="h-4 w-4 min-[900px]:hidden" aria-hidden />
                 <Minimize2 className="hidden h-4 w-4 min-[900px]:block" aria-hidden />
               </button>
-              <h2 className="text-base font-semibold">{label}</h2>
+              <h2 className="font-display text-[24px]">{label}</h2>
             </div>
             <div
               className="min-h-0 flex-1 overflow-y-auto"

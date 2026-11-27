@@ -1,15 +1,17 @@
 /**
- * The date bar at the top of the trip page (docs/LAYOUT.md). Summary in the
- * bar; the calendar opens as a pop-up under it: animated, closes on an
- * outside click or Escape, and doesn't gray out the page.
+ * The dates card on the trip overview (co-farer-redesign/SPEC.md, DatesCard).
+ * Header: the locked range and a "Locked" pill (or "Picking dates"), and
+ * "Open calendar", which opens the existing calendar pop-up (animated,
+ * closes on an outside click or Escape, doesn't gray out the page).
+ * Body: one column per day, bar height = the share of members free that day.
  */
 
 import { useMemo, useState } from 'react'
-import { CalendarDays, ChevronDown, Lock } from 'lucide-react'
 import { ConfirmModal, Popover, PopoverContent, PopoverTrigger, useToast } from '@/components/ui'
 import { callAction } from '../../lib/actions-client'
-import { formatRange, freeByDay, freeForWholeSpan } from '../../lib/dates'
+import { formatRange, freeByDay, freeForWholeSpan, localToday, overviewWindow, weekdayLetter, weekdayName } from '../../lib/dates'
 import { useAvailability, useOptions, type Member, type Trip } from '../../lib/trip-data'
+import { Pill } from '../trip/cards'
 import { DatesCalendar } from './DatesCalendar'
 
 export function DatesBar({ trip, members, me }: { trip: Trip; members: Member[]; me: Member }) {
@@ -20,13 +22,14 @@ export function DatesBar({ trip, members, me }: { trip: Trip; members: Member[];
   const [open, setOpen] = useState(false)
   const [confirmUnlock, setConfirmUnlock] = useState(false)
   const [unlocking, setUnlocking] = useState(false)
-  const locked = trip.datesStatus === 'locked' && trip.datesStart && trip.datesEnd
+  const lockedRange = trip.datesStatus === 'locked' && trip.datesStart && trip.datesEnd ? { start: trip.datesStart, end: trip.datesEnd } : null
+  const memberIds = members.map((m) => m.userId)
+  const n = members.length
 
-  const freeAll = useMemo(() => {
-    if (!locked) return 0
-    const byDay = freeByDay(ranges, members.map((m) => m.userId))
-    return freeForWholeSpan(byDay, { start: trip.datesStart!, end: trip.datesEnd! }).size
-  }, [locked, ranges, members, trip.datesStart, trip.datesEnd])
+  const byDay = useMemo(() => freeByDay(ranges, memberIds), [ranges, memberIds.join(',')])
+  const days = useMemo(() => overviewWindow(lockedRange, ranges, localToday()), [lockedRange?.start, lockedRange?.end, ranges])
+  const freeAll = lockedRange ? freeForWholeSpan(byDay, lockedRange).size : 0
+  const isLocked = (d: string) => !!lockedRange && d >= lockedRange.start && d <= lockedRange.end
 
   const unlock = async () => {
     setUnlocking(true)
@@ -38,46 +41,83 @@ export function DatesBar({ trip, members, me }: { trip: Trip; members: Member[];
   }
 
   return (
-    <>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger
-          data-testid="dates-bar"
-          className="group flex w-full items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-left text-sm outline-none transition-colors hover:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <CalendarDays className="h-4 w-4 text-primary" aria-hidden />
-          {locked ? (
-            <span data-testid="dates-summary">
-              <span className="font-medium">{formatRange({ start: trip.datesStart!, end: trip.datesEnd! })}</span>
-              <span className="text-muted-foreground">
-                {' '}
-                · <Lock className="mb-0.5 inline h-3 w-3" aria-hidden /> Locked · {freeAll} of {members.length} free
-              </span>
-            </span>
+    <section className="flex min-w-0 flex-col gap-4 rounded-[20px] bg-cf-surface px-[22px] py-5 lg:flex-[1.5_1_0%]" aria-label="Dates">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-baseline gap-3" data-testid="dates-summary">
+          {lockedRange ? (
+            <>
+              <h2 className="font-display tabular text-[28px]">{formatRange(lockedRange)}</h2>
+              <Pill tone="ok">Locked</Pill>
+            </>
           ) : (
-            <span data-testid="dates-summary">
-              <span className="font-medium">Dates</span>
-              <span className="text-muted-foreground"> · Not locked yet</span>
-            </span>
+            <>
+              <h2 className="font-display text-[28px]">Dates</h2>
+              <span className="text-sm text-cf-muted">Picking dates</span>
+            </>
           )}
-          <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[popup-open]:rotate-180" aria-hidden />
-        </PopoverTrigger>
-        <PopoverContent
-          align="start"
-          className="w-[min(560px,calc(100vw-32px))] duration-200 motion-reduce:animate-none"
-          aria-label="Trip dates calendar"
+        </div>
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger
+            data-testid="dates-bar"
+            className="inline-flex h-9 items-center rounded-full border border-cf-border px-3.5 text-[13px] text-cf-text transition-colors hover:bg-cf-surface-2"
+          >
+            Open calendar
+          </PopoverTrigger>
+          <PopoverContent
+            align="end"
+            className="w-[min(560px,calc(100vw-32px))] duration-200 motion-reduce:animate-none"
+            aria-label="Trip dates calendar"
+          >
+            <DatesCalendar
+              trip={trip}
+              members={members}
+              me={me}
+              ranges={ranges}
+              onRequestUnlock={() => {
+                setOpen(false)
+                setConfirmUnlock(true)
+              }}
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      {/* Below 640px the 14 days scroll sideways, each at least 32px wide. */}
+      <div className="-mx-1 overflow-x-auto px-1 pb-1">
+        <div
+          className="grid min-w-[548px] grid-cols-[repeat(14,minmax(32px,1fr))] items-end gap-1.5 sm:min-w-0"
+          role="list"
+          aria-label={`People free per day, ${formatRange({ start: days[0], end: days[days.length - 1] })}`}
         >
-          <DatesCalendar
-            trip={trip}
-            members={members}
-            me={me}
-            ranges={ranges}
-            onRequestUnlock={() => {
-              setOpen(false)
-              setConfirmUnlock(true)
-            }}
-          />
-        </PopoverContent>
-      </Popover>
+          {days.map((d) => {
+            const free = byDay.get(d)?.size ?? 0
+            const share = n ? Math.round((free / n) * 100) : 0
+            const locked = isLocked(d)
+            return (
+              <div key={d} role="listitem" className="flex flex-col items-center gap-1.5" data-testid="day-column">
+                <div
+                  className="flex h-[84px] w-full items-end overflow-hidden rounded-lg bg-cf-surface-2"
+                  role="img"
+                  aria-label={`${weekdayName(d)} ${formatRange({ start: d, end: d })}: ${free} of ${n} free${locked ? ', locked' : ''}`}
+                >
+                  <div className="w-full rounded-lg" style={{ height: `${share}%`, background: locked ? 'var(--cf-accent)' : 'var(--cf-neutral-bar)' }} />
+                </div>
+                <span className="text-[11px] text-cf-muted" aria-hidden>{weekdayLetter(d)}</span>
+                <span className={locked ? 'tabular text-sm font-semibold text-cf-accent-ink' : 'tabular text-sm font-semibold'} aria-hidden>
+                  {Number(d.slice(8))}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      <p className="text-[13px] text-cf-muted" data-testid="dates-free">
+        {lockedRange
+          ? `${freeAll === n ? `All ${n}` : `${freeAll} of ${n}`} free on the locked dates · bar height = people free that day`
+          : 'Bar height = people free that day'}
+      </p>
+
       <ConfirmModal
         open={confirmUnlock}
         onClose={() => setConfirmUnlock(false)}
@@ -91,6 +131,6 @@ export function DatesBar({ trip, members, me }: { trip: Trip; members: Member[];
         }
         confirmText="Unlock dates"
       />
-    </>
+    </section>
   )
 }

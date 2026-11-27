@@ -69,7 +69,7 @@ test('Core: create, join, private and public budgets, non-member refused', async
 
   // ── 4. B, not yet a member, is refused ──
   await b.page.goto('/trips')
-  await expect(b.page.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
+  await expect(b.page.getByRole('heading', { name: 'Where to next?' })).toBeVisible({ timeout: 15_000 })
   const refused = await action(b.page, 'setMyBudgets', { tripId, housing: 1 })
   expect(refused).toMatchObject({ success: false, code: 'not_a_member' })
   const refusedLeave = await action(b.page, 'rotateInviteCode', { tripId })
@@ -145,12 +145,12 @@ test('Core: create, join, private and public budgets, non-member refused', async
 test('Core: a non-member cannot join a trip presence room', async ({ users }) => {
   const [a, b] = await users(2)
   await a.page.goto('/trips')
-  await expect(a.page.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
+  await expect(a.page.getByRole('heading', { name: 'Where to next?' })).toBeVisible({ timeout: 15_000 })
   const created = (await action(a.page, 'createTrip', { name: 'Presence check', destination: 'Cachuma Lake' })) as { success: boolean; data: { tripId: string } }
   expect(created.success).toBe(true)
 
   await b.page.goto('/trips')
-  await expect(b.page.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
+  await expect(b.page.getByRole('heading', { name: 'Where to next?' })).toBeVisible({ timeout: 15_000 })
   const outcome = async (page: Page) =>
     page.evaluate(async (tripId) => {
       const t = await fetch('/api/auth/token', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } })
@@ -179,7 +179,7 @@ test('a failed sign-in says so on the sign-in panel', async ({ page }) => {
 test('Core: a saved profile (name + picture) sticks and shows in trips', async ({ users }) => {
   const [a] = await users(1)
   await a.page.goto('/trips')
-  await expect(a.page.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
+  await expect(a.page.getByRole('heading', { name: 'Where to next?' })).toBeVisible({ timeout: 15_000 })
   const custom = `Al ${Date.now().toString(36)}`
   const pic = '/api/files/app/avatars/test.jpg?scope=app'
   const trip = (await action(a.page, 'createTrip', { name: 'Profile check', destination: 'Cachuma Lake' })) as { data: { tripId: string } }
@@ -196,9 +196,11 @@ test('Core: a saved profile (name + picture) sticks and shows in trips', async (
   await expect(a.page.getByTestId('member-name')).toHaveText(custom)
   // The picture link reached the trip's member row…
   await expect(a.page.getByTestId('members-list').locator(`[data-image="${pic}"]`)).toHaveCount(1)
-  // …and since that file doesn't exist, the avatar falls back to the letter.
+  // …and since that file doesn't exist, the avatar falls back to the initials ("Al xyz" → "AX").
   await expect(a.page.getByTestId('members-list').locator(`img[src="${pic}"]`)).toHaveCount(0)
-  await expect(a.page.getByTestId('members-list').getByText(custom[0].toUpperCase(), { exact: true })).toBeVisible()
+  const parts = custom.split(' ')
+  const expectedInitials = (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  await expect(a.page.getByTestId('members-list').getByText(expectedInitials, { exact: true })).toBeVisible()
 
   // Leave the shared test account as it was: real name, no picture.
   expect(await action(a.page, 'updateMyProfile', { name: a.name || 'Alice', imageUrl: null })).toMatchObject({ success: true })
@@ -208,7 +210,7 @@ test('Core: invite link copies on the first open, even if the clipboard API refu
   const [a] = await users(1)
   await a.context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await a.page.goto('/trips')
-  await expect(a.page.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
+  await expect(a.page.getByRole('heading', { name: 'Where to next?' })).toBeVisible({ timeout: 15_000 })
   const trip = (await action(a.page, 'createTrip', { name: 'Copy check', destination: 'Cachuma Lake' })) as { data: { tripId: string } }
   await a.page.goto(`/trip/${trip.data.tripId}`)
   // Simulate a browser that rejects navigator.clipboard.writeText (seen in a

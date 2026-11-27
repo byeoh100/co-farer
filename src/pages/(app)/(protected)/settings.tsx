@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from 'react'
 import { useAuthStatus, useQuery, useUser } from 'deepspace'
-import { signOutEverywhere } from '@/components/SignInDialog'
+import { signOutEverywhere } from '@/components/SignIn'
 import { Button, Input, Label, useToast } from '@/components/ui'
 import { callAction } from '../../../lib/actions-client'
 import { MemberAvatar } from '../../../components/trip/MemberAvatar'

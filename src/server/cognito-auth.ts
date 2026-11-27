@@ -112,8 +112,17 @@ export function cookie(env: Pick<CognitoEnv, 'APP_URL'>, name: string, value: st
   return `${name}=${value}; Path=${opts.path ?? '/'}; HttpOnly; SameSite=Lax; Max-Age=${opts.maxAge}${secure}`
 }
 
-export function authorizeUrl(env: CognitoEnv, p: { state: string; challenge: string; provider: 'google' | 'email' }): string {
-  const u = new URL('/oauth2/authorize', env.COGNITO_DOMAIN)
+/** A plain email address, short enough to pass on (anything else is dropped). */
+export function loginHint(raw: string | null | undefined): string | null {
+  const v = (raw ?? '').trim()
+  return v.length <= 254 && /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(v) ? v : null
+}
+
+export type SignInProvider = 'google' | 'email' | 'signup'
+
+export function authorizeUrl(env: CognitoEnv, p: { state: string; challenge: string; provider: SignInProvider; email?: string | null }): string {
+  // "Create account" opens Cognito's own sign-up page; same parameters, same callback.
+  const u = new URL(p.provider === 'signup' ? '/signup' : '/oauth2/authorize', env.COGNITO_DOMAIN)
   u.searchParams.set('response_type', 'code')
   u.searchParams.set('client_id', env.COGNITO_CLIENT_ID!)
   u.searchParams.set('redirect_uri', callbackUrl(env))
@@ -123,6 +132,8 @@ export function authorizeUrl(env: CognitoEnv, p: { state: string; challenge: str
   u.searchParams.set('code_challenge_method', 'S256')
   // Google goes straight to Google; email shows Cognito's own page (email code).
   if (p.provider === 'google') u.searchParams.set('identity_provider', 'Google')
+  // The address typed on our sign-in page pre-fills Cognito's (redesign).
+  else if (p.email) u.searchParams.set('login_hint', p.email)
   return u.toString()
 }
 
@@ -309,9 +320,11 @@ export function registerCognitoAuthRoutes(app: Hono<AppContext>): void {
     if (!cognitoEnabled(e)) return next()
     const pem = await appKeyPem(e)
     if (!pem) return c.text('Sign-in is not available right now.', 503)
-    const provider = c.req.query('provider') === 'google' ? 'google' : 'email'
+    const asked = c.req.query('provider')
+    const provider: SignInProvider = asked === 'google' ? 'google' : asked === 'signup' ? 'signup' : 'email'
     const st: OAuthState = { state: randomToken(), verifier: randomToken(48), returnTo: safeReturnTo(c.req.query('returnTo')), exp: Date.now() + OAUTH_TTL_MS }
-    return redirect(authorizeUrl(e, { state: st.state, challenge: await pkceChallenge(st.verifier), provider }), [
+    const email = provider === 'google' ? null : loginHint(c.req.query('email'))
+    return redirect(authorizeUrl(e, { state: st.state, challenge: await pkceChallenge(st.verifier), provider, email }), [
       cookie(e, OAUTH_COOKIE, await seal(pem, st), { maxAge: OAUTH_TTL_MS / 1000, path: '/auth' }),
     ])
   })

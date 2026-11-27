@@ -41,11 +41,11 @@ function Checkbox({ className, checked, defaultChecked, onCheckedChange, ...prop
         onCheckedChange?.(value)
       }}
       className={cn(
-        'peer grid h-4 w-4 shrink-0 place-content-center rounded-[5px] border border-input shadow-sm transition-colors',
+        'peer grid h-4 w-4 shrink-0 place-content-center rounded-[5px] border border-input transition-colors',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background',
         'disabled:cursor-not-allowed disabled:opacity-50',
-        'data-[checked]:border-primary data-[checked]:bg-primary data-[checked]:text-primary-foreground',
-        'data-[indeterminate]:border-primary data-[indeterminate]:bg-primary data-[indeterminate]:text-primary-foreground',
+        'data-[checked]:border-cf-accent-ink data-[checked]:bg-primary data-[checked]:text-primary-foreground',
+        'data-[indeterminate]:border-cf-accent-ink data-[indeterminate]:bg-primary data-[indeterminate]:text-primary-foreground',
         className,
       )}
       {...props}

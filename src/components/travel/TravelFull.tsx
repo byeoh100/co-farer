@@ -208,7 +208,7 @@ function MyTravel({
             onClick={() => setChoice(o.id)}
             className={cn(
               'rounded-full border px-3 py-1 text-sm transition-colors',
-              choice === o.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-muted',
+              choice === o.id ? 'border-cf-accent-ink bg-primary text-primary-foreground' : 'border-border hover:bg-muted',
             )}
             data-testid={`mode-${o.id}`}
           >
@@ -384,7 +384,7 @@ function CarCard({
 
   return (
     <li
-      className={cn('rounded-xl border border-border bg-card p-3', inThisCar && 'border-primary ring-1 ring-primary/40')}
+      className={cn('rounded-xl border border-border bg-card p-3', inThisCar && 'border-cf-accent-ink ring-1 ring-primary/40')}
       data-testid="car"
       data-driver={driver?.displayName}
       data-full={car.full ? 'true' : 'false'}
@@ -504,7 +504,7 @@ function GasSettings({
           )}
           {isOrganizer && (
             <button
-              className="text-primary hover:underline"
+              className="text-cf-accent-ink hover:underline"
               onClick={() => {
                 setMiles(trip.tripMiles?.toString() ?? '')
                 setPrice(trip.gasPrice?.toFixed(2) ?? '')

@@ -1,27 +1,17 @@
 <!DOCTYPE html>
-<!--
-  Active theme is set on the <html> element below.
-  To switch themes, change `data-theme` to any id defined in src/themes.ts.
-  Color values per theme live in src/themes.css.
--->
-<html lang="en" data-theme="cofarer">
+<!-- One theme: Midnight Basecamp (src/styles.css). -->
+<html lang="en" data-theme="midnight">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" href="/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#111111" />
     <title>Co-farer</title>
-    <!--
-      First-paint background, keyed to the data-theme attribute above.
-      Without this the browser paints white until the CSS bundle arrives —
-      a hard flash on the dark themes. Each value mirrors --color-background
-      in src/styles.css (slate) / src/themes.css; keep them in sync when
-      adding or editing themes.
-    -->
+    <!-- First paint matches --cf-bg (no white flash before the CSS loads). -->
     <style>
-      html { background-color: #0a0a0a; color-scheme: dark; }
-      html[data-theme="paper"] { background-color: #ffffff; color-scheme: light; }
-      html[data-theme="cofarer"] { background-color: #f7f6f3; color-scheme: light; }
-      /* Add one line per theme you create, mirroring its --color-background. */
+      html { background-color: #111111; color-scheme: dark; }
     </style>
   </head>
   <body>

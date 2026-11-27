@@ -51,7 +51,7 @@ test('Additional: activities suggest, paste, rank; food prefs, warnings, prices,
   const [a, b] = (await users(2)).map((u) => u.page)
   for (const p of [a, b]) {
     await p.goto('/trips')
-    await expect(p.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
+    await expect(p.getByRole('heading', { name: 'Where to next?' })).toBeVisible({ timeout: 15_000 })
   }
   const tripId = (await action(a, 'createTrip', { name: `Additional ${Date.now().toString(36)}`, destination: 'Cachuma Lake' })).data!.tripId as string
   await a.goto(`/trip/${tripId}`)
@@ -129,11 +129,12 @@ test('Additional: activities suggest, paste, rank; food prefs, warnings, prices,
   // The overview card shows the top activity and food with the triangle.
   await a.goto(`/trip/${tripId}`)
   await expect(a.getByTestId('additional-summary')).toContainText('Test activity 4', { timeout: 15_000 })
-  // Thumbnails: top 3 of each, labeled; the food place that may not suit someone keeps its triangle.
-  await expect(a.getByTestId('summary-activities').getByTestId('summary-tile')).toHaveCount(3)
-  await expect(a.getByTestId('summary-food').getByTestId('summary-tile')).toHaveCount(3)
-  await expect(a.getByTestId('summary-food').getByTestId('tile-warning')).toHaveCount(1)
-  // An activity with no photo (the stand-in's 3rd result) shows the letter tile.
+  // Leaderboards (redesign): every idea, ranked; the food place that may not suit someone keeps its ▲ warning.
+  await expect(a.getByTestId('summary-activities').getByTestId('summary-tile')).toHaveCount(11)
+  await expect(a.getByTestId('summary-food').getByTestId('summary-tile')).toHaveCount(11)
+  // The place that accommodates nothing (the stand-in's first) is flagged.
+  await expect(a.getByTestId('summary-food').getByTestId('summary-tile').filter({ has: a.getByText('Test eatery 1', { exact: true }) }).getByTestId('tile-warning')).toBeVisible()
+  // An activity with no photo (the stand-in's 3rd result) shows the icon tile.
   await expect(a.getByTestId('summary-activities').locator('[data-testid="thumb"][data-fallback="true"]').first()).toBeVisible()
 
   // B leaves: B's food needs stop counting, so the warning goes away.

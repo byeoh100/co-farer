@@ -36,7 +36,7 @@ function GroupNeeds({ tripId, members }: { tripId: string; members: Member[] }) 
     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground" data-testid="group-needs">
       <Utensils className="h-3.5 w-3.5" aria-hidden />
       {needs.length ? `Group needs: ${needs.map((n) => `${DIETARY_LABELS[n.tag]} (${n.count})`).join(', ')}` : 'No dietary needs set.'}
-      <Link to={`/trip/${tripId}/settings#food`} className="text-primary hover:underline">Your food preferences</Link>
+      <Link to={`/trip/${tripId}/settings#food`} className="text-cf-accent-ink hover:underline">Your food preferences</Link>
     </p>
   )
 }

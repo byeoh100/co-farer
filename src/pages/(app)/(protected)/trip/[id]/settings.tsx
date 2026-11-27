@@ -149,7 +149,7 @@ export default function TripSettingsPage() {
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Estimate: {line.estimate == null ? 'none yet' : `$${line.estimate}`}
-                  {line.over && <span className="ml-1 font-medium text-destructive">· over budget</span>}
+                  {line.over && <span className="ml-1 font-medium text-cf-warn">· ▲ over budget</span>}
                 </p>
               </div>
             </div>
@@ -166,7 +166,7 @@ export default function TripSettingsPage() {
           </span>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">Housing and gas only. Going over is flagged, never blocked.</p>
-        {summary.totalOver && <p className="mt-1 text-xs font-medium text-destructive">Estimated costs are over your essentials budget.</p>}
+        {summary.totalOver && <p className="mt-1 text-xs font-medium text-cf-warn">Estimated costs are over your essentials budget.</p>}
       </div>
 
       {invalid.length > 0 && (
@@ -300,7 +300,7 @@ function FoodPreferences({ tripId, userId }: { tripId: string; userId: string })
               onClick={() => toggle(t)}
               className={cn(
                 'rounded-full border px-3 py-1 text-sm transition-colors',
-                on ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-muted',
+                on ? 'border-cf-accent-ink bg-primary text-primary-foreground' : 'border-border hover:bg-muted',
               )}
               data-testid={`diet-${t}`}
             >

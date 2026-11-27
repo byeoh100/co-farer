@@ -1,19 +1,20 @@
 import { useState } from 'react'
-import { getUserColor } from 'deepspace'
 import { cn } from '@/lib/utils'
-import { avatarInitial } from '../../lib/core-input'
+import { initials } from '../../lib/personColor'
+import { usePersonColor } from '../../lib/person-colors-context'
 
 /**
- * Google Docs-style avatar: the profile picture, or the first letter of the
- * first name on a color fixed per person (also if the picture fails to
- * load). Online is in color; offline is grayed.
+ * A member's circle in their person colour (co-farer-redesign/SPEC.md):
+ * initials in #111111, a 2px ring in the page colour so overlapping circles
+ * stay apart. Profile pictures are on hold (migration 2c), but a stored one
+ * still shows, and falls back to initials if it fails. Offline is grayed.
  */
 export function MemberAvatar({
   userId,
   name,
   imageUrl,
   online,
-  size = 32,
+  size = 34,
   className,
 }: {
   userId: string
@@ -23,32 +24,24 @@ export function MemberAvatar({
   size?: number
   className?: string
 }) {
-  // Remember which URL failed, so a new picture gets a fresh try.
+  const colorOf = usePersonColor()
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
   const showImage = !!imageUrl && failedUrl !== imageUrl
   return (
     <span
       className={cn(
-        // Thin dark outline so white pictures stay visible; the white ring outside it
-        // keeps overlapping circles apart.
-        'relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-foreground/80 font-semibold text-white ring-2 ring-card transition-[filter,opacity] duration-300',
+        'relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-[#111111] ring-2 ring-cf-bg transition-[filter,opacity] duration-300',
         !online && 'opacity-60 grayscale',
         className,
       )}
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.45), backgroundColor: getUserColor(userId) }}
+      style={{ width: size, height: size, fontSize: Math.max(9, Math.round(size * 0.35)), backgroundColor: colorOf(userId) }}
       title={`${name}${online ? ' · online' : ''}`}
       data-image={imageUrl ?? undefined}
     >
       {showImage ? (
-        <img
-          src={imageUrl}
-          alt=""
-          className="h-full w-full object-cover"
-          referrerPolicy="no-referrer"
-          onError={() => setFailedUrl(imageUrl)}
-        />
+        <img src={imageUrl} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" onError={() => setFailedUrl(imageUrl)} />
       ) : (
-        <span aria-hidden>{avatarInitial(name)}</span>
+        <span aria-hidden>{size < 24 ? initials(name)[0] : initials(name)}</span>
       )}
       <span className="sr-only">{`${name}${online ? ', online' : ', offline'}`}</span>
     </span>

@@ -4,7 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { verifyJwt } from 'deepspace/worker'
 import type { AppContext } from '../../worker'
 import {
-  RECHECK_MS, SESSION_COOKIE, authorizeUrl, cookie, displayName, mintAppToken, pkceChallenge, readCookie,
+  loginHint, RECHECK_MS, SESSION_COOKIE, authorizeUrl, cookie, displayName, mintAppToken, pkceChallenge, readCookie,
   registerCognitoAuthRoutes, resetCognitoCache, safeReturnTo, seal, unseal, verifyIdToken, type CognitoEnv,
 } from './cognito-auth'
 
@@ -76,6 +76,16 @@ describe('small helpers', () => {
     expect(new URL(authorizeUrl(ENV, { state: 's1', challenge, provider: 'email' })).searchParams.has('identity_provider')).toBe(false)
     // S256 = base64url(SHA-256(verifier)); this pair was checked against Node's own SHA-256.
     expect(await pkceChallenge('dBjftJeZ4CVP-mJ92K9qlnPWs6kE3UE2mxXkAgO1m0o')).toBe('alAp4mAlZ-ggWqEiAiiMS7ezDB_p2hKUUprG_u5zHe0')
+  })
+  it('passes a typed email on to Cognito as login_hint, and nothing else', async () => {
+    const challenge = await pkceChallenge('v')
+    expect(new URL(authorizeUrl(ENV, { state: 's', challenge, provider: 'email', email: 'ana@x.com' })).searchParams.get('login_hint')).toBe('ana@x.com')
+    expect(new URL(authorizeUrl(ENV, { state: 's', challenge, provider: 'google', email: 'ana@x.com' })).searchParams.has('login_hint')).toBe(false)
+    const up = new URL(authorizeUrl(ENV, { state: 's', challenge, provider: 'signup', email: 'ana@x.com' }))
+    expect(up.pathname).toBe('/signup')
+    expect(up.searchParams.get('code_challenge')).toBe(challenge)
+    expect(loginHint(' ana@x.com ')).toBe('ana@x.com')
+    for (const bad of ['', 'not-an-email', 'a@b', '"><script>@x.com', 'a b@x.com', `${'a'.repeat(250)}@x.com`, null]) expect(loginHint(bad)).toBeNull()
   })
   it('sets HttpOnly SameSite cookies, Secure only over https', () => {
     expect(cookie(ENV, 'a', 'b', { maxAge: 60 })).toBe('a=b; Path=/; HttpOnly; SameSite=Lax; Max-Age=60; Secure')

@@ -40,7 +40,7 @@ async function setupTrip(users: Page[]) {
   const [a, ...rest] = users
   for (const p of users) {
     await p.goto('/trips')
-    await expect(p.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
+    await expect(p.getByRole('heading', { name: 'Where to next?' })).toBeVisible({ timeout: 15_000 })
   }
   const created = await action(a, 'createTrip', { name: `Travel ${Date.now().toString(36)}`, destination: 'Cachuma Lake' })
   const tripId = created.data!.tripId as string

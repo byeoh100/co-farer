@@ -20,3 +20,9 @@ export function fitText(fit: CategoryFit | null): { text: string; tone: FitTone 
   }
   return { text: `Over the housing budget for ${fit.overBudgetCount} of ${fit.respondedCount}`, tone: 'over' }
 }
+
+/** The overview's short form (co-farer-redesign/SPEC.md): "fits everyone" / "over budget for 2". */
+export function shortFit(fit: CategoryFit | null): { text: string; tone: 'ok' | 'over' } | null {
+  if (!fit || fit.priceUnknown || fit.respondedCount === 0) return null
+  return fit.overBudgetCount > 0 ? { text: `over budget for ${fit.overBudgetCount}`, tone: 'over' } : { text: 'fits everyone', tone: 'ok' }
+}

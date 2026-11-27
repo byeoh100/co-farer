@@ -43,7 +43,7 @@ function nextMonthDay(d: number): string {
 async function setupTrip(a: Page, b: Page) {
   for (const p of [a, b]) {
     await p.goto('/trips')
-    await expect(p.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
+    await expect(p.getByRole('heading', { name: 'Where to next?' })).toBeVisible({ timeout: 15_000 })
   }
   const tripId = (await action(a, 'createTrip', { name: `Stretch ${Date.now().toString(36)}`, destination: 'Cachuma Lake' })).data!.tripId as string
   await a.goto(`/trip/${tripId}`)
@@ -121,5 +121,6 @@ test('Best window: the organizer’s helper marks the best stretch and selects i
   await expect(a.getByTestId('selection-bar')).toBeVisible()
   await a.getByTestId('lock-dates').click()
   await a.keyboard.press('Escape')
-  await expect(a.getByTestId('dates-summary')).toContainText('Locked · 2 of 2 free', { timeout: 15_000 })
+  await expect(a.getByTestId('dates-summary')).toContainText('Locked', { timeout: 15_000 })
+  await expect(a.getByTestId('dates-free')).toHaveText(/^All 2 free on the locked dates/)
 })

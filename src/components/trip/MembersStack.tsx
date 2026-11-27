@@ -8,6 +8,8 @@ import { MemberAvatar } from './MemberAvatar'
 import { useOnlineUsers } from './TripPresence'
 
 const MAX_SHOWN = 5
+/** Phones show at most 3 circles plus "+N". */
+const MAX_SHOWN_MOBILE = 3
 const LABELS = { housing: 'Housing', gas: 'Gas', food: 'Food', activities: 'Activities' } as const
 
 /**
@@ -16,6 +18,7 @@ const LABELS = { housing: 'Housing', gas: 'Gas', food: 'Food', activities: 'Acti
  * gets the invite link.
  */
 export function MembersStack({ trip, members, isOrganizer }: { trip: Trip; members: Member[]; isOrganizer: boolean }) {
+  const [open, setOpen] = useState(false)
   const online = useOnlineUsers()
   const publicBudgets = usePublicBudgets(trip.id)
   // Online people first, so the colored circles lead the stack.
@@ -24,18 +27,31 @@ export function MembersStack({ trip, members, isOrganizer }: { trip: Trip; membe
   const extra = ordered.length - shown.length
 
   return (
-    <Popover>
+    <div className="flex items-center gap-3.5">
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         data-testid="members-stack"
         aria-label={`${members.length} ${members.length === 1 ? 'member' : 'members'}, ${online.size} online. Show members`}
-        className="flex items-center rounded-full p-0.5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex items-center rounded-full p-0.5"
       >
-        <span className="flex -space-x-2">
-          {shown.map((m) => (
-            <MemberAvatar key={m.userId} userId={m.userId} name={m.displayName} imageUrl={m.imageUrl} online={online.has(m.userId)} />
+        <span className="flex">
+          {shown.map((m, i) => (
+            <MemberAvatar
+              key={m.userId}
+              userId={m.userId}
+              name={m.displayName}
+              imageUrl={m.imageUrl}
+              online={online.has(m.userId)}
+              className={`${i > 0 ? '-ml-2.5' : ''} ${i >= MAX_SHOWN_MOBILE ? 'max-sm:hidden' : ''}`}
+            />
           ))}
+          {ordered.length > MAX_SHOWN_MOBILE && (
+            <span className="-ml-2.5 inline-flex h-[34px] w-[34px] items-center justify-center rounded-full bg-cf-surface-2 text-xs font-medium text-cf-muted ring-2 ring-cf-bg sm:hidden">
+              +{ordered.length - MAX_SHOWN_MOBILE}
+            </span>
+          )}
           {extra > 0 && (
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground ring-2 ring-card">
+            <span className="-ml-2.5 hidden h-[34px] w-[34px] items-center justify-center rounded-full bg-cf-surface-2 text-xs font-medium text-cf-muted ring-2 ring-cf-bg sm:inline-flex">
               +{extra}
             </span>
           )}
@@ -62,7 +78,7 @@ export function MembersStack({ trip, members, isOrganizer }: { trip: Trip; membe
                   {BUDGET_CATEGORIES.some((c) => pub[c] != null) && (
                     <p className="mt-0.5 flex flex-wrap gap-1" data-testid="member-public-budgets">
                       {BUDGET_CATEGORIES.filter((c) => pub[c] != null).map((c) => (
-                        <span key={c} className="rounded-full bg-accent px-2 py-0.5 text-[11px] text-accent-foreground">
+                        <span key={c} className="rounded-full bg-cf-surface-2 px-2 py-0.5 text-[11px] text-cf-text">
                           {LABELS[c]} ${pub[c]}
                         </span>
                       ))}
@@ -76,6 +92,17 @@ export function MembersStack({ trip, members, isOrganizer }: { trip: Trip; membe
         {isOrganizer && <InviteControls trip={trip} />}
       </PopoverContent>
     </Popover>
+    {/* The invite link lives in the members panel (organizer only). */}
+    {isOrganizer && (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="h-10 rounded-full bg-cf-accent px-[18px] text-sm font-semibold text-white hover:bg-[#3456b8]"
+      >
+        Invite
+      </button>
+    )}
+    </div>
   )
 }
 

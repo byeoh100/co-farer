@@ -184,7 +184,7 @@ function ListCard({
 
   return (
     <li
-      className={cn('rounded-xl border border-border bg-card p-3 transition-shadow duration-300', isNew && 'border-primary ring-2 ring-primary/50')}
+      className={cn('rounded-xl border border-border bg-card p-3 transition-shadow duration-300', isNew && 'border-cf-accent-ink ring-2 ring-primary/50')}
       onPointerEnter={isNew ? onSeen : undefined}
       onFocusCapture={isNew ? onSeen : undefined}
       data-testid={`card-${module}`}
@@ -210,7 +210,7 @@ function ListCard({
             ) : (
               option.title
             )}
-            {isNew && <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] text-primary">New</span>}
+            {isNew && <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] text-cf-accent-ink">New</span>}
           </p>
           <p className="text-xs text-muted-foreground">
             {option.source === 'ai' ? 'Suggested by AI' : `Added by ${names.get(option.addedBy ?? '')?.displayName ?? 'a member'}`}
@@ -219,7 +219,7 @@ function ListCard({
             {option.price != null && option.priceSource === 'member' && ' (added by a member)'}
             {!editingPrice && (
               <button
-                className="ml-1.5 text-primary hover:underline"
+                className="ml-1.5 text-cf-accent-ink hover:underline"
                 onClick={() => {
                   setPriceInput(option.price?.toString() ?? '')
                   setEditingPrice(true)
@@ -276,7 +276,7 @@ function ListCard({
       {r && r.sources.length > 0 && (
         <p className="mt-1 flex flex-wrap gap-x-3 text-xs" data-testid="option-sources">
           {r.sources.map((s) => (
-            <a key={s} href={s} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex items-center gap-0.5 text-primary hover:underline">
+            <a key={s} href={s} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex items-center gap-0.5 text-cf-accent-ink hover:underline">
               {hostname(s)} <ExternalLink className="h-3 w-3" aria-hidden />
             </a>
           ))}

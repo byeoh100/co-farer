@@ -256,7 +256,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps): React.ReactElement {
         pointer-events-auto
         relative flex items-start gap-2.5 min-w-[260px] max-w-[360px]
         overflow-hidden rounded-lg border border-border bg-popover
-        text-popover-foreground pl-3.5 pr-2 py-2.5 shadow-lg
+        text-popover-foreground pl-3.5 pr-2 py-2.5
         ${exiting
           ? 'animate-out fade-out-0 slide-out-to-right-2 duration-150'
           : 'animate-in fade-in-0 slide-in-from-right-2 duration-200'

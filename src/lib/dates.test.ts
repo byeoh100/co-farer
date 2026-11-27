@@ -136,3 +136,22 @@ describe('bestWindows (stretch)', () => {
     expect(bestWindows(new Map(), 2, '2027-03-01')).toEqual([])
   })
 })
+
+import { overviewWindow, weekdayLetter } from './dates'
+
+describe('overviewWindow', () => {
+  it('centres 14 days on the locked dates', () => {
+    const w = overviewWindow({ start: '2027-03-19', end: '2027-03-21' }, [], '2026-11-27')
+    expect(w).toHaveLength(14)
+    expect(w[0]).toBe('2027-03-13')
+    expect(w).toContain('2027-03-21')
+  })
+  it('starts at the earliest availability still ahead, else today', () => {
+    expect(overviewWindow(null, [{ start: '2027-01-05', end: '2027-01-08' }, { start: '2026-11-01', end: '2026-11-02' }], '2026-11-27')[0]).toBe('2027-01-05')
+    expect(overviewWindow(null, [{ start: '2026-11-20', end: '2026-12-02' }], '2026-11-27')[0]).toBe('2026-11-27')
+    expect(overviewWindow(null, [], '2026-11-27')[0]).toBe('2026-11-27')
+  })
+  it('names weekdays', () => {
+    expect(weekdayLetter('2027-03-19')).toBe('F')
+  })
+})

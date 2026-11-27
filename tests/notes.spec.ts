@@ -40,7 +40,7 @@ test('Notes: live add, edit, delete; B leaves and B’s notes gray out; organize
   const [a, b] = (await users(2)).map((u) => u.page)
   for (const p of [a, b]) {
     await p.goto('/trips')
-    await expect(p.getByRole('heading', { name: 'My trips' })).toBeVisible({ timeout: 15_000 })
+    await expect(p.getByRole('heading', { name: 'Where to next?' })).toBeVisible({ timeout: 15_000 })
   }
   const tripId = (await action(a, 'createTrip', { name: `Notes ${Date.now().toString(36)}`, destination: 'Cachuma Lake' })).data!.tripId as string
   await a.goto(`/trip/${tripId}`)
