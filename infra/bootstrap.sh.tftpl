@@ -89,7 +89,7 @@ switch() { ln -sfn "$1" /opt/cofarer/current.new && mv -T /opt/cofarer/current.n
 switch "$DEST"
 systemctl restart cofarer
 for _ in $(seq 1 60); do
-  if curl -fsS -o /dev/null --max-time 2 http://127.0.0.1:8080/api/auth/get-session; then
+  if curl -fs -o /dev/null --max-time 2 http://127.0.0.1:8080/api/auth/get-session; then
     echo "release $ID is live"
     # Keep the five newest releases.
     ls -1dt /opt/cofarer/releases/*/ | tail -n +6 | xargs -r rm -rf

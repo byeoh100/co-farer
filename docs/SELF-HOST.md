@@ -269,3 +269,41 @@ Coverage: 24 e2e tests, all passing (17 s). That is the 26 DeepSpace-era
 flows minus the three for features removed in 2d (API-status page ×2, picture
 cropper) and the DeepSpace auth-proxy check, plus two new API checks
 (signed-out refusals; a forged token is refused).
+
+## Phase 3: the AWS server (2026-11-27)
+
+**Live at https://co-farer.duckdns.org.** Terraform in `infra/` (see
+`infra/README.md`); state is local (`infra/terraform.tfstate`, gitignored).
+
+| Piece | What's running |
+| --- | --- |
+| Server | `i-04f2f650c5051296d`, **t4g.micro** (2 Arm vCPUs, 1 GB + 1 GB swap; grow by changing `instance_type`), Amazon Linux 2023 arm64, IMDSv2 only |
+| Address | Elastic IP `3.132.126.16`; DuckDNS points `co-farer.duckdns.org` at it (`cofarer-duckdns.timer`, every 6 h) |
+| HTTPS | Caddy 2.11.9 (checksum-pinned), Let's Encrypt certificate, HTTP → HTTPS, HSTS. Access logs drop sign-in codes, WebSocket tokens, cookies and auth headers. |
+| App | `cofarer.service`: workerd as user `cofarer`, on 127.0.0.1:8080 only, read-only filesystem except `/var/lib/cofarer`, restarts on failure |
+| Firewall | 80 and 443 in; no SSH (22 closed). Shell access: `terraform -chdir=infra output -raw shell` (SSM Session Manager) |
+| Role | `cofarer-server`: Bedrock (the one model), `/cofarer/*` parameters (+ KMS decrypt via SSM only), S3 `releases/` read and `backups/` write, its two log groups, SSM core |
+| Backups | Daily EBS snapshots at 11:00 UTC (7 kept, DLM) and a nightly 4 am Pacific copy of the data to `s3://cofarer-464079169769-us-east-2/backups/` (14 days) |
+| Logs and alarms | CloudWatch `/cofarer/workerd`, `/cofarer/caddy` (30 days). Instance status check → email; AWS hardware failure → automatic recovery + email (SNS `cofarer-alarms`) |
+| Updates | `dnf-automatic` security updates; reboot Sundays 4:30 am Pacific |
+| Deploys | `infra/release.sh --install`: builds, uploads `releases/<git sha>/`, installs over SSM Run Command, rolls back if the app doesn't answer within 60 s. A rebuilt server installs `releases/latest.txt` by itself. |
+
+The server reads every secret (app signing key, Brave key, DuckDNS token)
+from Parameter Store at run time; none is written to disk or Terraform state.
+The only private keys on disk are Caddy's own Let's Encrypt keys (readable
+by the `caddy` user only).
+
+### "Done when" checks
+
+| Check | Result |
+| --- | --- |
+| `https://co-farer.duckdns.org` serves Co-farer with a valid certificate | Pass: Let's Encrypt, valid to 2027-02-25, auto-renewed |
+| Two real accounts pass the two-browser checklist on the live server | Human |
+| Rebooting brings the app back with all data intact | Pass: back in about 65 s; the data files' checksum was identical before and after |
+| One snapshot and one S3 backup exist | S3 backup: pass (`cofarer-do-20261127T074111Z.tar.gz`). Snapshot: first one at 11:00 UTC on 2026-11-27 |
+| Nothing answers on port 22; secrets not in the repo or on disk in plain text | Pass: 22 and 8080 closed from outside; no app secret on disk or in the app's environment |
+
+Also checked: sign-in on the server reaches Cognito (so the app reads its
+signing key from Parameter Store through the role), the test-only sign-in and
+DeepSpace routes are 404s, logs arrive in CloudWatch, and Terraform reports no
+drift.
